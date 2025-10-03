@@ -1,0 +1,120 @@
+
+# 📑 Ideation Document – Stock Market Fantasy Game (India)
+
+## 1. Concept Overview
+The application is a **fantasy stock trading game**, inspired by Dream11’s contest model but applied to the Indian stock market.  
+Users will create **virtual portfolios** (instead of cricket teams), participate in **market sessions** (daily/weekly contests), and compete on **leaderboards** based on their portfolio performance.  
+No real money is involved; the platform uses **virtual coins** for entry and rewards, making it both **educational and entertaining**.
+
+---
+
+## 2. Problem Statement
+- Young Indians are highly engaged in trading/stock markets but lack **safe environments** to learn.  
+- Fantasy sports apps like Dream11 are massively popular but limited to cricket.  
+- No mainstream app combines **gamification + stock trading education** in a fun way.
+
+---
+
+## 3. Value Proposition
+- **Learn-by-playing**: Users gain stock market knowledge in a risk-free setup.  
+- **Gamified contests**: Compete in daily/weekly sessions for leaderboard ranks.  
+- **Community-driven**: Friends and private leagues replicate the social thrill of fantasy sports.  
+- **Brand potential**: Positioned as the “Dream11 for stocks” with educational compliance.
+
+---
+
+## 4. Target Audience
+- Students and young professionals (18–30) curious about stocks/crypto.  
+- Fantasy sports players looking for new formats.  
+- Stock beginners who want **practice before real trading**.  
+- EdTech partners (colleges, trading courses).
+
+---
+
+## 5. Core Features (MVP)
+1. **Authentication** (Email/Google/Firebase)  
+2. **Portfolio Creation** – users pick a set of stocks (budget limit).  
+3. **Market Sessions** – daily/weekly contests tied to stock performance.  
+4. **Live Leaderboard** – ranks by ROI %.  
+5. **Wallet (Virtual Coins)** – used for contest entry.  
+6. **Results & Insights** – ROI, rank, “you outperformed X% players”.  
+7. **Notifications** – session results, new contests.  
+
+---
+
+## 6. Future Features (Phase 2+)
+- Realtime price updates (via paid APIs).  
+- Private leagues with friends.  
+- Badges/XP levels (gamification).  
+- In-app tutorials on stock basics.  
+- Sponsored leagues (EdTech, brokers).  
+
+---
+
+## 7. Tech Stack
+- **Frontend**: Flutter (cross-platform Android/iOS).  
+- **Backend**: Firebase / Node.js (for contest management, leaderboards).  
+- **Database**: Firestore (scalable, easy for MVP).  
+- **APIs**: Twelve Data / Alpha Vantage (stock market prices).  
+- **Auth**: Firebase Auth (Google/Email OTP).  
+
+---
+
+## 8. UI/UX Principles
+- Material 3 design (modern, clean).  
+- Bottom navigation: Market | Portfolio | Leagues | Profile.  
+- Dark/light mode support.  
+- Clean cards with rounded corners.  
+- Simple onboarding explaining rules.  
+
+---
+
+## 9. Monetization (Long-Term)
+- Freemium model (free play + premium contests with extra features).  
+- Partnerships with stock market educators.  
+- Ads/sponsorships in free version.  
+- In-app purchases for skins, badges, premium analytics.
+
+---
+
+## 10. Roadmap
+**Phase 1 (4–6 weeks):**  
+- Fork Crick11 repo, adapt entities (Player→Stock, Team→Portfolio).  
+- Add EOD stock data (Twelve Data free plan).  
+- Implement ROI scoring & leaderboards.  
+- Rebrand UI (Material 3).  
+
+**Phase 2 (6–12 weeks):**  
+- Add private leagues.  
+- Integrate notifications.  
+- Improve UI with charts & insights.  
+
+**Phase 3 (3–6 months):**  
+- Introduce realtime APIs.  
+- Add badges, gamified progression.  
+- Partner with EdTech/trading institutes.  
+
+---
+
+## 11. Risks & Mitigation
+- **Compliance**: Avoid real-money wagering → keep as educational.  
+- **API Limits**: Start with EOD free APIs, scale to paid later.  
+- **Engagement**: Use gamification (XP, badges) to retain users.  
+- **Competition**: Differentiate by focusing on education + fun.
+
+---
+
+## 12. Success Metrics
+- # of daily active users (DAU).  
+- # of market sessions played.  
+- Retention (Day 7, Day 30).  
+- Avg. session ROI accuracy vs real data.  
+- User feedback (educational value).
+
+---
+
+## 13. Vision
+To build the **#1 gamified stock learning app** in India — combining **fun, competition, and financial literacy**.  
+Long-term: expand to crypto, global stocks, and partner with universities and stock brokers as an onboarding tool.
+
+---
