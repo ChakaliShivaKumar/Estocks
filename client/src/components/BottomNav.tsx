@@ -1,8 +1,9 @@
-import { TrendingUp, Briefcase, Trophy, User } from "lucide-react";
+import { Home, TrendingUp, Briefcase, Trophy, User } from "lucide-react";
 import { useLocation } from "wouter";
 
 const navItems = [
-  { label: "Market", icon: TrendingUp, path: "/" },
+  { label: "Home", icon: Home, path: "/" },
+  { label: "Market", icon: TrendingUp, path: "/market" },
   { label: "Portfolio", icon: Briefcase, path: "/portfolio" },
   { label: "Contests", icon: Trophy, path: "/contests" },
   { label: "Profile", icon: User, path: "/profile" },

@@ -13,6 +13,7 @@ export interface Contest {
   timeRemaining: string;
   featured?: boolean;
   closingSoon?: boolean;
+  description?: string;
 }
 
 interface ContestCardProps {
@@ -29,7 +30,12 @@ export function ContestCard({ contest, onJoin }: ContestCardProps) {
             <h3 className="font-semibold text-lg text-foreground">
               {contest.name}
             </h3>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
+            {contest.description && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {contest.description}
+              </p>
+            )}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
               {contest.featured && (
                 <Badge className="text-xs px-2 py-0.5" data-testid="badge-featured">
                   Featured

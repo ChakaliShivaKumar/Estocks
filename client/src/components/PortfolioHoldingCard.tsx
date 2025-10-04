@@ -10,6 +10,7 @@ export interface PortfolioHolding {
   currentValue: number;
   plAmount: number;
   plPercent: number;
+  coinsInvested?: number;
 }
 
 interface PortfolioHoldingCardProps {
@@ -33,14 +34,14 @@ export function PortfolioHoldingCard({ holding }: PortfolioHoldingCardProps) {
               {holding.companyName}
             </div>
             <div className="text-xs text-muted-foreground mt-0.5">
-              {holding.quantity} shares @ ₹{holding.avgPrice.toFixed(2)}
+              {holding.coinsInvested || 0} coins → {holding.quantity.toFixed(4)} shares
             </div>
           </div>
         </div>
 
         <div className="text-right flex-shrink-0">
           <div className="font-bold tabular-nums" data-testid={`text-value-${holding.symbol}`}>
-            ₹{holding.currentValue.toLocaleString()}
+            {holding.currentValue.toFixed(2)} coins
           </div>
           <div
             className={`flex items-center justify-end gap-1 text-sm font-bold tabular-nums ${
