@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupAuthRoutes } from "./authRoutes";
 import { setupAdminRoutes } from "./adminRoutes";
@@ -10,6 +11,30 @@ import { createWebSocketService } from "./websocketService";
 import { gamificationScheduler } from "./gamificationScheduler";
 
 const app = express();
+
+// Configure CORS for mobile app support
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests from Capacitor mobile apps (no origin header)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost for development
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    
+    // Allow Capacitor HTTPS scheme
+    if (origin.startsWith('https://')) {
+      return callback(null, true);
+    }
+    
+    callback(new Error('Not allowed by CORS'));
+  },
+  credentials: true, // Allow cookies
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());

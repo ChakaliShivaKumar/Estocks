@@ -46,11 +46,11 @@ export function setupAuthRoutes(app: Express) {
         email: newUser.email
       });
 
-      // Set HTTP-only cookie
+      // Set HTTP-only cookie (mobile-friendly)
       res.cookie('auth_token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production', // HTTPS in production
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Strict in production
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
@@ -95,11 +95,11 @@ export function setupAuthRoutes(app: Express) {
         email: user.email
       });
 
-      // Set HTTP-only cookie
+      // Set HTTP-only cookie (mobile-friendly)
       res.cookie('auth_token', token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: process.env.NODE_ENV === 'production', // HTTPS in production
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Strict in production
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
