@@ -1,0 +1,12 @@
+{
+  "name": "estocks-backend",
+  "type": "web_service",
+  "buildCommand": "npm run build:api",
+  "startCommand": "npm run start:api",
+  "healthCheckPath": "/health",
+  "env": "node",
+  "region": "oregon",
+  "plan": "free",
+  "autoDeploy": true,
+  "branch": "main"
+}
