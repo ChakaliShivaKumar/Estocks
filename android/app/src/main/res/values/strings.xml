@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Estocks</string>
+    <string name="title_activity_main">Estocks</string>
+    <string name="package_name">com.estocks.app</string>
+    <string name="custom_url_scheme">com.estocks.app</string>
+</resources>
