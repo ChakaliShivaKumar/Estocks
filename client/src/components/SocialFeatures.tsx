@@ -3,7 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AchievementBadge } from "./AchievementBadge";
-import { Users, Trophy, UserPlus, UserMinus, Star } from "lucide-react";
+import { FriendSystem } from "./FriendSystem";
+import { PrivateLeagues } from "./PrivateLeagues";
+import { AchievementSharing, AchievementSharesList } from "./AchievementSharing";
+import { Users, Trophy, UserPlus, UserMinus, Star, MessageCircle, Share2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -138,11 +141,23 @@ export function SocialFeatures({ userId }: SocialFeaturesProps) {
         <h1 className="text-2xl font-bold">Social Features</h1>
       </div>
 
-      <Tabs defaultValue="achievements" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="friends" className="w-full">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="friends" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Friends
+          </TabsTrigger>
+          <TabsTrigger value="leagues" className="flex items-center gap-2">
+            <Trophy className="h-4 w-4" />
+            Leagues
+          </TabsTrigger>
           <TabsTrigger value="achievements" className="flex items-center gap-2">
             <Trophy className="h-4 w-4" />
             Achievements
+          </TabsTrigger>
+          <TabsTrigger value="shares" className="flex items-center gap-2">
+            <Share2 className="h-4 w-4" />
+            Shares
           </TabsTrigger>
           <TabsTrigger value="followers" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
@@ -153,6 +168,14 @@ export function SocialFeatures({ userId }: SocialFeaturesProps) {
             Following ({following.length})
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="friends" className="space-y-4">
+          <FriendSystem />
+        </TabsContent>
+
+        <TabsContent value="leagues" className="space-y-4">
+          <PrivateLeagues />
+        </TabsContent>
 
         <TabsContent value="achievements" className="space-y-4">
           {achievements.length === 0 ? (
@@ -198,6 +221,10 @@ export function SocialFeatures({ userId }: SocialFeaturesProps) {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="shares" className="space-y-4">
+          {currentUserId && <AchievementSharesList userId={currentUserId} />}
         </TabsContent>
 
         <TabsContent value="followers" className="space-y-3">

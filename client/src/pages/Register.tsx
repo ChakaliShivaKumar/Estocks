@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
-import { TrendingUp, Mail, Lock, User } from "lucide-react";
+import { Mail, Lock, User } from "lucide-react";
+import { Logo } from "@/components/Logo";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -64,10 +65,7 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-8">
         <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">Estocks</h1>
-          </div>
+          <Logo size="md" />
         </div>
 
         <div className="text-center mb-6">

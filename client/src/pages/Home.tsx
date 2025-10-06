@@ -2,7 +2,6 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  TrendingUp, 
   Target, 
   Trophy, 
   Users, 
@@ -13,6 +12,7 @@ import {
   Star,
   Zap
 } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -76,15 +76,7 @@ export default function Home() {
         {/* Hero Section */}
         <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-background p-6 pb-8">
           <div className="flex items-center justify-center mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary/20 rounded-full">
-                <TrendingUp className="h-8 w-8 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold">Estocks</h1>
-                <p className="text-muted-foreground">Fantasy Stock Trading</p>
-              </div>
-            </div>
+            <Logo size="lg" showText={false} className="scale-150" />
           </div>
           
           <div className="text-center mb-6">
@@ -143,7 +135,7 @@ export default function Home() {
         <div className="px-6 mb-8">
           <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
             <Star className="h-5 w-5 text-primary" />
-            Why Choose Estocks?
+            Why Choose TRADE UP?
           </h3>
           <div className="grid gap-4">
             {features.map((feature, index) => (
@@ -260,7 +252,7 @@ export default function Home() {
         {/* Footer */}
         <div className="px-6 pb-8">
           <div className="text-center text-sm text-muted-foreground">
-            <p>© 2024 Estocks. Fantasy trading for educational purposes.</p>
+            <p>© 2024 TRADE UP. Fantasy trading for educational purposes.</p>
             <p className="mt-1">Not real money. Not real risk. Real learning.</p>
           </div>
         </div>

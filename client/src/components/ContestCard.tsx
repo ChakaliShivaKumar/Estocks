@@ -1,7 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Clock, Trophy, Coins } from "lucide-react";
+import { Users, Clock, Trophy, Coins, Eye } from "lucide-react";
+import { useLocation } from "wouter";
 
 export interface Contest {
   id: string;
@@ -22,6 +23,12 @@ interface ContestCardProps {
 }
 
 export function ContestCard({ contest, onJoin }: ContestCardProps) {
+  const [, setLocation] = useLocation();
+
+  const handleViewContest = () => {
+    setLocation(`/contests/${contest.id}`);
+  };
+
   return (
     <Card className="p-4 hover-elevate" data-testid={`card-contest-${contest.id}`}>
       <div className="flex flex-col gap-3">
@@ -93,13 +100,24 @@ export function ContestCard({ contest, onJoin }: ContestCardProps) {
           </div>
         </div>
 
-        <Button
-          className="w-full"
-          onClick={() => onJoin?.(contest.id)}
-          data-testid={`button-join-contest-${contest.id}`}
-        >
-          Join Contest
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1"
+            onClick={handleViewContest}
+            data-testid={`button-view-contest-${contest.id}`}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            View Details
+          </Button>
+          <Button
+            className="flex-1"
+            onClick={() => onJoin?.(contest.id)}
+            data-testid={`button-join-contest-${contest.id}`}
+          >
+            Join Contest
+          </Button>
+        </div>
       </div>
     </Card>
   );

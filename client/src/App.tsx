@@ -17,16 +17,20 @@ import Admin from "@/pages/Admin";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import NotFound from "@/pages/not-found";
+import ContestDetail from "@/pages/ContestDetail";
+import JoinContest from "@/pages/JoinContest";
 
 function AuthenticatedApp() {
   return (
-    <div className="h-screen flex flex-col bg-background">
-      <main className="flex-1 overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-background">
+      <main className="flex-1 overflow-y-auto pb-16">
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/market" component={Market} />
           <Route path="/portfolio" component={Portfolio} />
           <Route path="/contests" component={Contests} />
+          <Route path="/contests/:id" component={ContestDetail} />
+          <Route path="/contests/join/:contestId" component={JoinContest} />
           <Route path="/profile" component={Profile} />
           <Route path="/leaderboard" component={Leaderboard} />
           <Route path="/admin" component={Admin} />

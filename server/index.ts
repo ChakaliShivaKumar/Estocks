@@ -7,6 +7,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { contestScheduler } from "./scheduler";
 import { stockPriceService } from "./stockPriceService";
 import { createWebSocketService } from "./websocketService";
+import { gamificationScheduler } from "./gamificationScheduler";
 
 const app = express();
 app.use(express.json());
@@ -71,6 +72,9 @@ app.use((req, res, next) => {
   } else {
     serveStatic(app);
   }
+
+  // Start schedulers
+  gamificationScheduler.start();
 
   const port = process.env.PORT || 3000;
   server.listen({

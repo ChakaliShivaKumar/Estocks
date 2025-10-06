@@ -37,7 +37,15 @@ export class ContestScheduler {
 
         // Check if contest should start
         if (contest.status === 'upcoming' && startTime <= now) {
-          await this.startContest(contest.id);
+          // Check if contest has enough participants before starting
+          const participantCount = await storage.getContestParticipantCount(contest.id);
+          
+          if (participantCount < 2) {
+            // Mark contest as abandoned and refund participants
+            await this.handleAbandonedContest(contest);
+          } else {
+            await this.startContest(contest.id);
+          }
         }
 
         // Check if contest should end
@@ -47,6 +55,36 @@ export class ContestScheduler {
       }
     } catch (error) {
       console.error('Error in contest lifecycle check:', error);
+    }
+  }
+
+  private async handleAbandonedContest(contest: any) {
+    try {
+      console.log(`❌ Contest "${contest.name}" (${contest.id}) is abandoned - insufficient participants`);
+      
+      // Mark contest as cancelled
+      await storage.updateContestStatus(contest.id, 'cancelled');
+      
+      // Get all participants and refund their entry fees
+      const entries = await storage.getContestEntries(contest.id);
+      
+      for (const entry of entries) {
+        // Refund the entry fee
+        await storage.updateUserCoinsBalance(entry.userId, contest.entryFee);
+        
+        // Record the refund transaction
+        await storage.createCoinTransaction({
+          userId: entry.userId,
+          amount: contest.entryFee,
+          type: 'refund',
+          description: `Refund for abandoned contest: ${contest.name}`,
+          contestId: contest.id
+        });
+        
+        console.log(`💰 Refunded ${contest.entryFee} coins to user ${entry.userId} for abandoned contest`);
+      }
+    } catch (error) {
+      console.error(`Error handling abandoned contest ${contest.id}:`, error);
     }
   }
 

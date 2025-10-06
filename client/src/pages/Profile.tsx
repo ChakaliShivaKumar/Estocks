@@ -1,13 +1,30 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { StatsGrid } from "@/components/StatsGrid";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { LeaderboardEntry, type LeaderboardUser } from "@/components/LeaderboardEntry";
-import { Trophy, TrendingUp, Target, Award, Settings, LogOut, Shield, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
-import { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProfilePhotoUpload } from "@/components/ProfilePhotoUpload";
+import { ProfileEditForm } from "@/components/ProfileEditForm";
+import { CoinManagement } from "@/components/CoinManagement";
+import { StatsGrid } from "@/components/StatsGrid";
+import { GamificationDashboard } from "@/components/GamificationDashboard";
+import { SocialFeatures } from "@/components/SocialFeatures";
+import { 
+  User, 
+  Settings, 
+  Coins, 
+  BarChart3, 
+  LogOut, 
+  Shield,
+  Trophy,
+  TrendingUp,
+  Target,
+  Award,
+  Gamepad2,
+  Users
+} from "lucide-react";
 
 interface UserStats {
   totalContests: number;
@@ -25,198 +42,332 @@ interface UserStats {
 }
 
 export default function Profile() {
-  const { user, logout } = useAuth();
-  const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState<"overview" | "edit" | "coins" | "stats" | "gamification" | "social">("overview");
   const [stats, setStats] = useState<UserStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [profileImage, setProfileImage] = useState<string>("");
+  
+  const { user, logout, updateUser } = useAuth();
+  const [, setLocation] = useLocation();
   
   // Check if user is admin
   const isAdmin = user?.email === 'admin@estocks.com' || user?.email === 'capshiv@example.com';
 
   useEffect(() => {
-    const fetchUserStats = async () => {
-      if (!user) return;
-      
-      try {
-        setLoading(true);
-        const response = await fetch(`/api/users/${user.id}/stats`, {
-          credentials: 'include'
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch user statistics');
-        }
-        
-        const data = await response.json();
-        setStats(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load statistics');
-      } finally {
-        setLoading(false);
+    if (user) {
+      fetchUserStats();
+      if (user.profilePicture) {
+        setProfileImage(user.profilePicture);
       }
-    };
-
-    fetchUserStats();
+    }
   }, [user]);
 
-  const handleLogout = async () => {
+  const fetchUserStats = async () => {
+    if (!user) return;
+    
     try {
-      await logout();
-      setLocation('/login');
+      setLoading(true);
+      const response = await fetch(`/api/users/${user.id}/stats`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch user statistics');
+      }
+      
+      const data = await response.json();
+      setStats(data);
+      setError(null);
     } catch (err) {
-      console.error('Logout failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load statistics');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatJoinDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short' 
-    });
+  const handleLogout = () => {
+    logout();
+    setLocation('/login');
   };
 
-  const getRankSuffix = (rank: number) => {
-    if (rank === 1) return 'st';
-    if (rank === 2) return 'nd';
-    if (rank === 3) return 'rd';
-    return 'th';
+  const handleImageChange = (imageUrl: string) => {
+    setProfileImage(imageUrl);
+    if (updateUser) {
+      updateUser({ profilePicture: imageUrl });
+    }
   };
 
-  return (
-    <div className="flex flex-col h-full">
-      <header className="flex-shrink-0 p-4 border-b border-border bg-card">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Profile</h1>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button variant="ghost" size="icon" data-testid="button-settings">
-              <Settings className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
+  const handleImageRemove = () => {
+    setProfileImage("");
+    if (updateUser) {
+      updateUser({ profilePicture: "" });
+    }
+  };
 
-      <div className="flex-1 overflow-y-auto p-4 pb-20">
-        <Card className="p-6 mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <Avatar className="h-20 w-20">
-              <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
-                {user?.username?.substring(0, 2).toUpperCase() || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold" data-testid="text-username">
-                {user?.username || 'User'}
-              </h2>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Member since {user?.createdAt ? formatJoinDate(user.createdAt) : 'Unknown'}
-              </p>
-            </div>
-          </div>
-          <Button variant="outline" className="w-full" data-testid="button-edit-profile">
-            Edit Profile
+  const handleProfileSave = () => {
+    // Refresh user data or show success message
+    fetchUserStats();
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="p-8 text-center">
+          <div className="text-muted-foreground">Please log in to view your profile</div>
+          <Button onClick={() => setLocation('/login')} className="mt-4">
+            Go to Login
           </Button>
         </Card>
+      </div>
+    );
+  }
 
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <span className="ml-2">Loading statistics...</span>
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-6 max-w-4xl">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <User className="h-8 w-8 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">{user.fullName || user.username}</h1>
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <span>@{user.username}</span>
+                {isAdmin && (
+                  <Badge variant="default" className="flex items-center gap-1">
+                    <Shield className="h-3 w-3" />
+                    Admin
+                  </Badge>
+                )}
+              </div>
+            </div>
           </div>
-        ) : error ? (
-          <div className="text-center py-8">
-            <p className="text-destructive mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Retry</Button>
+          
+          <div className="flex gap-2">
+            {isAdmin && (
+              <Button 
+                variant="outline" 
+                onClick={() => setLocation('/admin')}
+                className="flex items-center gap-2"
+              >
+                <Shield className="h-4 w-4" />
+                Admin Panel
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
           </div>
-        ) : stats ? (
-          <>
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-3">Statistics</h3>
-              <StatsGrid stats={[
-                { 
-                  label: "Contests Played", 
-                  value: stats.totalContests.toString(), 
-                  icon: <Trophy className="h-4 w-4" /> 
-                },
-                { 
-                  label: "Win Rate", 
-                  value: `${stats.winRate}%`, 
-                  icon: <Target className="h-4 w-4" /> 
-                },
-                { 
-                  label: "Average ROI", 
-                  value: `${stats.avgROI >= 0 ? '+' : ''}${stats.avgROI}%`, 
-                  icon: <TrendingUp className="h-4 w-4" /> 
-                },
-                { 
-                  label: "Best Rank", 
-                  value: stats.bestRank ? `${stats.bestRank}${getRankSuffix(stats.bestRank)}` : 'N/A', 
-                  icon: <Award className="h-4 w-4" /> 
-                },
-              ]} />
+        </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              <span className="hidden sm:inline">Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="edit" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Edit Profile</span>
+            </TabsTrigger>
+            <TabsTrigger value="coins" className="flex items-center gap-2">
+              <Coins className="h-4 w-4" />
+              <span className="hidden sm:inline">Coins</span>
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Statistics</span>
+            </TabsTrigger>
+            <TabsTrigger value="gamification" className="flex items-center gap-2">
+              <Gamepad2 className="h-4 w-4" />
+              <span className="hidden sm:inline">Gamification</span>
+            </TabsTrigger>
+            <TabsTrigger value="social" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Social</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
+            {/* Profile Photo Upload */}
+            <ProfilePhotoUpload
+              currentImage={profileImage}
+              onImageChange={handleImageChange}
+              onRemove={handleImageRemove}
+            />
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Coins className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Coin Balance</div>
+                    <div className="text-xl font-bold">{user.coinsBalance.toLocaleString()}</div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                    <Trophy className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Contests Joined</div>
+                    <div className="text-xl font-bold">{stats?.totalContests || 0}</div>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                    <TrendingUp className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Win Rate</div>
+                    <div className="text-xl font-bold">{stats?.winRate ? `${stats.winRate.toFixed(1)}%` : '0%'}</div>
+                  </div>
+                </div>
+              </Card>
             </div>
 
-            {stats.recentPerformance.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3">Recent Performance</h3>
-                <div className="flex flex-col gap-3">
-                  {stats.recentPerformance.map((perf, index) => (
-                    <div key={index} className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{perf.contestName}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {perf.rank > 0 ? `${perf.rank}${getRankSuffix(perf.rank)} place` : 'No rank'}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span>ROI: {perf.roi >= 0 ? '+' : ''}{perf.roi.toFixed(2)}%</span>
-                        <span>Value: ${perf.portfolioValue.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  ))}
+            {/* Account Information */}
+            <Card className="p-6">
+              <h3 className="text-lg font-semibold mb-4">Account Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <div className="text-muted-foreground">Email</div>
+                  <div className="font-medium">{user.email}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Username</div>
+                  <div className="font-medium">@{user.username}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Full Name</div>
+                  <div className="font-medium">{user.fullName || 'Not set'}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground">Member Since</div>
+                  <div className="font-medium">
+                    {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
+                  </div>
                 </div>
               </div>
-            )}
-          </>
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground">No statistics available yet.</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Join some contests to see your performance statistics!
-            </p>
-          </div>
-        )}
+            </Card>
+          </TabsContent>
 
-        <div className="space-y-3">
-          {isAdmin && (
-            <Button 
-              variant="outline" 
-              className="w-full justify-start" 
-              onClick={() => setLocation('/admin')}
-            >
-              <Shield className="h-4 w-4 mr-2" />
-              Admin Panel
-            </Button>
-          )}
-          <Button variant="outline" className="w-full justify-start" data-testid="button-transaction-history">
-            Transaction History
-          </Button>
-          <Button variant="outline" className="w-full justify-start" data-testid="button-help">
-            Help & Support
-          </Button>
-          <Button 
-            variant="outline" 
-            className="w-full justify-start text-destructive hover:text-destructive" 
-            data-testid="button-logout"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Logout
-          </Button>
-        </div>
+          <TabsContent value="edit">
+            <ProfileEditForm onSave={handleProfileSave} />
+          </TabsContent>
+
+          <TabsContent value="coins">
+            <CoinManagement />
+          </TabsContent>
+
+          <TabsContent value="stats">
+            {loading ? (
+              <Card className="p-8 text-center">
+                <div className="text-muted-foreground">Loading statistics...</div>
+              </Card>
+            ) : error ? (
+              <Card className="p-8 text-center">
+                <div className="text-red-500 mb-2">Error loading statistics</div>
+                <div className="text-sm text-muted-foreground">{error}</div>
+                <Button onClick={fetchUserStats} className="mt-4">
+                  Try Again
+                </Button>
+              </Card>
+            ) : stats ? (
+              <div className="space-y-6">
+                <StatsGrid stats={[
+                  {
+                    label: "Total Contests",
+                    value: stats.totalContests,
+                    icon: <Trophy className="h-4 w-4" />
+                  },
+                  {
+                    label: "Win Rate",
+                    value: `${stats.winRate}%`,
+                    icon: <TrendingUp className="h-4 w-4" />
+                  },
+                  {
+                    label: "Average ROI",
+                    value: `${stats.avgROI}%`,
+                    icon: <Target className="h-4 w-4" />
+                  },
+                  {
+                    label: "Best Rank",
+                    value: stats.bestRank ? `#${stats.bestRank}` : "N/A",
+                    icon: <Award className="h-4 w-4" />
+                  }
+                ]} />
+                
+                {stats.recentPerformance.length > 0 ? (
+                  <Card className="p-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <Target className="h-5 w-5" />
+                      Recent Performance
+                    </h3>
+                    <div className="space-y-3">
+                      {stats.recentPerformance.slice(0, 5).map((performance, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div>
+                            <div className="font-medium">{performance.contestName}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Portfolio: {performance.portfolioValue.toFixed(2)} coins
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center gap-2">
+                              <Award className="h-4 w-4" />
+                              <span className="font-semibold">#{performance.rank}</span>
+                            </div>
+                            <div className={`text-sm ${performance.roi >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {performance.roi >= 0 ? '+' : ''}{performance.roi.toFixed(2)}% ROI
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card>
+                ) : (
+                  <Card className="p-8 text-center">
+                    <Trophy className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                    <h3 className="text-lg font-semibold mb-2">No Contest History Yet</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Join your first contest to start building your trading statistics
+                    </p>
+                    <Button onClick={() => setLocation('/contests')}>
+                      Browse Contests
+                    </Button>
+                  </Card>
+                )}
+              </div>
+            ) : (
+              <Card className="p-8 text-center">
+                <div className="text-muted-foreground">No statistics available</div>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="gamification">
+            <GamificationDashboard userId={user.id} />
+          </TabsContent>
+
+          <TabsContent value="social">
+            <SocialFeatures userId={user.id} />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

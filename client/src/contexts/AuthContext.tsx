@@ -6,6 +6,20 @@ export interface User {
   email: string;
   fullName: string;
   coinsBalance: number;
+  profilePicture?: string;
+  bio?: string;
+  phoneNumber?: string;
+  dateOfBirth?: string;
+  location?: string;
+  // Gamification fields
+  level?: number;
+  experiencePoints?: number;
+  currentStreak?: number;
+  longestStreak?: number;
+  lastActiveDate?: string;
+  referralCode?: string;
+  referredBy?: string;
+  totalReferrals?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -15,6 +29,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string, fullName: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (updates: Partial<User>) => void;
   loading: boolean;
   error: string | null;
 }
@@ -139,11 +154,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
 
+  const updateUser = (updates: Partial<User>) => {
+    if (user) {
+      setUser({ ...user, ...updates });
+    }
+  };
+
   const value = {
     user,
     login,
     register,
     logout,
+    updateUser,
     loading,
     error
   };

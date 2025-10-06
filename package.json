@@ -1,5 +1,5 @@
 {
-  "name": "rest-express",
+  "name": "trade-up",
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",
@@ -13,7 +13,10 @@
     "db:setup": "npm run db:push && npm run db:seed",
     "admin:setup": "tsx server/addAdminData.ts",
     "demo:performance": "tsx server/populateDemoData.ts",
-    "demo:achievements": "tsx server/populateAchievements.ts"
+    "demo:achievements": "tsx server/populateAchievements.ts",
+    "migrate": "tsx server/migrateDatabase.ts",
+    "gamification:setup": "tsx server/createGamificationTables.ts",
+    "gamification:challenges": "tsx server/populateDailyChallenges.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

@@ -1,9 +1,10 @@
 import { ContestCard, type Contest } from "@/components/ContestCard";
 import { MyContests } from "@/components/MyContests";
+import { UserContestManagement } from "@/components/UserContestManagement";
 import { CoinBalance } from "@/components/CoinBalance";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Clock, Zap, ArrowLeft, User } from "lucide-react";
+import { Clock, Zap, ArrowLeft, User, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useContest } from "@/contexts/ContestContext";
@@ -13,7 +14,7 @@ export default function Contests() {
   const [contests, setContests] = useState<Contest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"all" | "my">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "my" | "create">("all");
   const { user } = useAuth();
   const { selectedPortfolio, setSelectedContest } = useContest();
   const [, setLocation] = useLocation();
@@ -194,15 +195,26 @@ export default function Contests() {
             All Contests
           </Button>
           {user && (
-            <Button
-              variant={activeTab === "my" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setActiveTab("my")}
-              className="flex items-center gap-2"
-            >
-              <User className="h-4 w-4" />
-              My Contests
-            </Button>
+            <>
+              <Button
+                variant={activeTab === "my" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveTab("my")}
+                className="flex items-center gap-2"
+              >
+                <User className="h-4 w-4" />
+                My Contests
+              </Button>
+              <Button
+                variant={activeTab === "create" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveTab("create")}
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Create Contest
+              </Button>
+            </>
           )}
         </div>
       </header>
@@ -240,8 +252,10 @@ export default function Contests() {
               </div>
             )}
           </>
-        ) : (
+        ) : activeTab === "my" ? (
           <MyContests />
+        ) : (
+          <UserContestManagement />
         )}
       </div>
 
