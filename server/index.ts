@@ -69,44 +69,74 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
-  // Setup authentication routes
-  setupAuthRoutes(app);
-  
-  // Setup admin routes
-  setupAdminRoutes(app);
-  
-  const server = await registerRoutes(app);
+// Check if DATABASE_URL is set
+if (!process.env.DATABASE_URL) {
+  console.error('❌ DATABASE_URL environment variable is not set');
+  console.error('Please set DATABASE_URL in your Render environment variables');
+  process.exit(1);
+}
 
-  // Initialize WebSocket service
-  const wsService = createWebSocketService(server);
+console.log('🚀 Starting Estocks server...');
+console.log('📊 Database URL configured:', process.env.DATABASE_URL ? 'Yes' : 'No');
+console.log('🔑 JWT Secret configured:', process.env.JWT_SECRET ? 'Yes' : 'No');
+console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
   });
+});
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+// Setup authentication routes
+setupAuthRoutes(app);
+
+// Setup admin routes
+setupAdminRoutes(app);
+
+// Setup error handling middleware
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+
+  res.status(status).json({ message });
+  console.error('Server error:', err);
+});
+
+// Start the server
+const port = process.env.PORT || 3000;
+
+async function startServer() {
+  try {
+    console.log('🔧 Setting up routes...');
+    const server = await registerRoutes(app);
+
+    console.log('🔌 Initializing WebSocket service...');
+    const wsService = createWebSocketService(server);
+
+    console.log('📁 Setting up static file serving...');
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
+
+    console.log('⏰ Starting schedulers...');
+    gamificationScheduler.start();
+
+    console.log(`🌐 Starting server on port ${port}...`);
+    server.listen(port, "0.0.0.0", () => {
+      console.log(`✅ Estocks server running on port ${port}`);
+      console.log(`🌐 Server URL: http://localhost:${port}`);
+      console.log('🎉 Server startup complete!');
+    });
+
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
   }
+}
 
-  // Start schedulers
-  gamificationScheduler.start();
-
-  const port = process.env.PORT || 3000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
-    log(`serving on port ${port}`);
-  });
-})();
+startServer();
