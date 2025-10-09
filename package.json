@@ -20,7 +20,10 @@
     "build:mobile": "vite build",
     "sync:android": "npx cap sync android",
     "open:android": "npx cap open android",
-    "build:android": "npm run build:mobile && npm run sync:android && npx cap build android"
+    "build:android": "npm run build:mobile && npm run sync:android && npx cap build android",
+    "dev:mobile": "NODE_ENV=development tsx server/mobile-server.ts",
+    "build:render": "npm run build:mobile && npx esbuild server/render-server.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "start:render": "NODE_ENV=production node dist/render-server.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",

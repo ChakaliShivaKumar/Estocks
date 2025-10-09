@@ -6,14 +6,14 @@ const config: CapacitorConfig = {
   webDir: 'dist/public',
   server: {
     androidScheme: 'https',
-    // For development - your computer's IP address
-    url: 'http://172.20.7.203:3000', // Your actual IP address
-    cleartext: true // Allow HTTP for development
+    // For production - Render server URL (will be updated with actual URL)
+    url: 'https://your-render-app-name.onrender.com',
+    cleartext: false // Use HTTPS in production
   },
   android: {
-    allowMixedContent: true,
+    allowMixedContent: false, // Enforce HTTPS in production
     captureInput: true,
-    webContentsDebuggingEnabled: true
+    webContentsDebuggingEnabled: false // Disable debugging in production
   },
   plugins: {
     SplashScreen: {
