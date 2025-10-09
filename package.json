@@ -32,7 +32,9 @@
     "build:frontend": "npm run build:mobile && npx esbuild server/frontend-render-server.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
     "start:frontend": "NODE_ENV=production node dist/frontend-render-server.js",
     "build:frontend-api": "npm run build:mobile && npx esbuild server/frontend-api-server.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start:frontend-api": "NODE_ENV=production node dist/frontend-api-server.js"
+    "start:frontend-api": "NODE_ENV=production node dist/frontend-api-server.js",
+    "build:complete": "npm run build:mobile && npx esbuild server/complete-render-server.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "start:complete": "NODE_ENV=production node dist/complete-render-server.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.3",
