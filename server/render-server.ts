@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import path from "path";
+import fs from "fs";
 import { registerRoutes } from "./routes";
 import { setupAuthRoutes } from "./authRoutes";
 import { setupAdminRoutes } from "./adminRoutes";
@@ -156,8 +158,33 @@ async function startServer() {
     const server = await registerRoutes(app);
 
     console.log('📁 Setting up static file serving...');
-    // Always serve static files for production
-    serveStatic(app);
+    // Try to serve static files, but don't fail if they don't exist
+    try {
+      const distPath = path.resolve(import.meta.dirname, "..", "dist", "public");
+      if (fs.existsSync(distPath)) {
+        serveStatic(app);
+        console.log('✅ Static file serving configured');
+      } else {
+        console.log('📁 No static files found, running API-only mode');
+        throw new Error('Static files not found');
+      }
+    } catch (error) {
+      console.log('📁 Running in API-only mode (no frontend files)');
+      
+      // Add a fallback route for the root path
+      app.get('/', (req, res) => {
+        res.json({
+          message: 'Estocks API Server',
+          status: 'running',
+          mode: 'api-only',
+          endpoints: {
+            health: '/health',
+            api: '/api'
+          },
+          timestamp: new Date().toISOString()
+        });
+      });
+    }
 
     console.log(`🌐 Starting server on port ${port}...`);
     server.listen(port, "0.0.0.0", () => {
