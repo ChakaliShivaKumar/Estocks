@@ -4,9 +4,6 @@ import cors from "cors";
 import path from "path";
 import fs from "fs";
 import { serveStatic } from "./vite";
-import { registerRoutes } from "./routes";
-import { setupAuthRoutes } from "./authRoutes";
-import { setupAdminRoutes } from "./adminRoutes";
 
 const app = express();
 
@@ -42,7 +39,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
-console.log('🚀 Starting Estocks Frontend Render Server...');
+console.log('🚀 Starting Estocks Frontend + API Server...');
 console.log('🌍 Environment:', process.env.NODE_ENV || 'production');
 console.log('🔧 Port:', process.env.PORT || 10000);
 
@@ -53,9 +50,10 @@ app.get('/health', async (req, res) => {
       status: 'ok', 
       database: 'not-connected',
       frontend: 'serving',
+      api: 'basic-endpoints',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'production',
-      mode: 'frontend-render-production',
+      mode: 'frontend-api-production',
       version: '1.0.0'
     });
   } catch (error) {
@@ -65,32 +63,12 @@ app.get('/health', async (req, res) => {
       error: error instanceof Error ? error.message : 'Unknown error',
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || 'production',
-      mode: 'frontend-render-production'
+      mode: 'frontend-api-production'
     });
   }
 });
 
-// Setup API routes
-console.log('🔧 Setting up API routes...');
-try {
-  // Setup authentication routes
-  setupAuthRoutes(app);
-  console.log('✅ Authentication routes configured');
-  
-  // Setup admin routes
-  setupAdminRoutes(app);
-  console.log('✅ Admin routes configured');
-  
-  // Setup main API routes
-  const server = await registerRoutes(app);
-  console.log('✅ Main API routes configured');
-  
-} catch (error) {
-  console.error('❌ Failed to set up API routes:', error);
-  console.log('⚠️ Running with basic API endpoints only');
-}
-
-// API endpoint for root path
+// Basic API endpoints to prevent JSON parsing errors
 app.get('/api', (req, res) => {
   res.json({
     name: "Estocks API",
@@ -100,7 +78,57 @@ app.get('/api', (req, res) => {
       health: "/health",
       api: "/api"
     },
-    deployment: "frontend-render-production"
+    deployment: "frontend-api-production"
+  });
+});
+
+// Mock authentication endpoints to prevent app crashes
+app.post('/api/auth/login', (req, res) => {
+  res.status(501).json({
+    error: "Authentication not implemented",
+    message: "This is a demo server. Authentication features are not available.",
+    status: "not-implemented"
+  });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  res.status(401).json({
+    error: "Not authenticated",
+    message: "Please login to access this feature",
+    status: "unauthenticated"
+  });
+});
+
+app.post('/api/auth/register', (req, res) => {
+  res.status(501).json({
+    error: "Registration not implemented",
+    message: "This is a demo server. Registration features are not available.",
+    status: "not-implemented"
+  });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  res.json({
+    message: "Logged out successfully",
+    status: "success"
+  });
+});
+
+// Mock stock endpoints
+app.get('/api/stocks', (req, res) => {
+  res.json({
+    stocks: [],
+    message: "Stock data not available in demo mode",
+    status: "demo-mode"
+  });
+});
+
+// Mock contest endpoints
+app.get('/api/contests', (req, res) => {
+  res.json({
+    contests: [],
+    message: "Contest data not available in demo mode",
+    status: "demo-mode"
   });
 });
 
@@ -121,7 +149,7 @@ try {
   // Fallback route for root path
   app.get('/', (req, res) => {
     res.json({
-      message: 'Estocks Frontend Server',
+      message: 'Estocks Frontend + API Server',
       status: 'error',
       mode: 'frontend-not-found',
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -146,17 +174,11 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 // Start the server
 const port = process.env.PORT || 10000;
 
-async function startServer() {
-  app.listen(port, "0.0.0.0", () => {
-    console.log(`✅ Estocks Frontend Render Server running on port ${port}`);
-    console.log(`🌐 Server URL: http://localhost:${port}`);
-    console.log('🎉 Server startup complete!');
-  });
-}
-
-startServer().catch((error) => {
-  console.error('❌ Failed to start server:', error);
-  process.exit(1);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`✅ Estocks Frontend + API Server running on port ${port}`);
+  console.log(`🌐 Server URL: http://localhost:${port}`);
+  console.log('🎉 Server startup complete!');
+  console.log('📱 Mobile app can now access both frontend and API endpoints');
 });
 
 // Handle uncaught exceptions
