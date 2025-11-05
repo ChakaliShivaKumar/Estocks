@@ -216,3 +216,4 @@ stocks (1) ──→ (many) price_history
 ```
 
 This architecture supports a scalable fantasy trading platform with proper separation of concerns, secure authentication, and efficient data management.
+

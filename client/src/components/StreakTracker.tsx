@@ -110,3 +110,4 @@ export function StreakTracker({ currentStreak, longestStreak, className }: Strea
     </Card>
   );
 }
+

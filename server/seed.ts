@@ -135,7 +135,13 @@ async function seedDatabase() {
     console.log("🏆 Creating contests...");
     for (const contest of initialContests) {
       try {
-        const created = await storage.createContest(contest);
+        const created = await storage.createContest({
+          ...contest,
+          visibility: 'public',
+          inviteCode: null,
+          createdBy: null,
+          allowFriends: true
+        });
         console.log(`✅ Created contest: ${created.name}`);
       } catch (error) {
         console.log(`⚠️  Contest ${contest.name} creation failed:`, error);

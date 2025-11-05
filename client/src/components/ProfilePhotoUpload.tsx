@@ -151,3 +151,4 @@ export function ProfilePhotoUpload({ currentImage, onImageChange, onRemove }: Pr
     </Card>
   );
 }
+

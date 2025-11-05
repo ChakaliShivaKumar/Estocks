@@ -1211,7 +1211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const league = await storage.createPrivateLeague({
         name,
-        description,
+        description: description || null,
         creatorId,
         maxMembers: maxMembers || 50,
         isPublic: isPublic || false
@@ -1344,7 +1344,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         contestId,
         userId,
         parentCommentId: parentCommentId || null,
-        content: content.trim()
+        content: content.trim(),
+        likes: 0,
+        isEdited: false
       });
 
       res.json(comment);
@@ -1477,7 +1479,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         leagueId,
         userId,
         content: content.trim(),
-        messageType: messageType || 'text'
+        messageType: messageType || 'text',
+        isEdited: false
       });
 
       res.json(message);
@@ -1553,13 +1556,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
+      const today = new Date().toISOString().split('T')[0];
       const challenge = await storage.createDailyChallenge({
         title,
         description,
         type,
         target,
         rewardXP,
-        rewardCoins: rewardCoins || 0
+        rewardCoins: rewardCoins || 0,
+        date: today,
+        isActive: true
       });
 
       res.json(challenge);

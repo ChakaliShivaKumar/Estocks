@@ -6,9 +6,9 @@ const config: CapacitorConfig = {
   webDir: 'dist/public',
   server: {
     androidScheme: 'https',
-    // For development - your computer's IP address
-    url: 'http://192.168.4.90:3000', // Replace with your actual IP
-    cleartext: true // Allow HTTP for development
+    // Production server on Render
+    url: 'https://estocks-1.onrender.com',
+    cleartext: false // HTTPS for production
   },
   android: {
     allowMixedContent: true,

@@ -2,10 +2,11 @@ import { Express } from 'express';
 import { storage } from './storage.ts';
 import { hashPassword, verifyPassword, generateToken, verifyToken, AuthRequest } from './auth.ts';
 import { randomUUID } from 'crypto';
+import { authLimiter } from './middleware/security';
 
 export function setupAuthRoutes(app: Express) {
-  // Register new user
-  app.post('/api/auth/register', async (req, res) => {
+  // Register new user (with rate limiting)
+  app.post('/api/auth/register', authLimiter, async (req, res) => {
     try {
       const { username, email, password, fullName } = req.body;
 
@@ -67,8 +68,8 @@ export function setupAuthRoutes(app: Express) {
     }
   });
 
-  // Login user
-  app.post('/api/auth/login', async (req, res) => {
+  // Login user (with rate limiting)
+  app.post('/api/auth/login', authLimiter, async (req, res) => {
     try {
       const { email, password } = req.body;
 

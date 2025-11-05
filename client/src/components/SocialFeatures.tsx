@@ -249,7 +249,7 @@ export function SocialFeatures({ userId }: SocialFeaturesProps) {
                       </div>
                     </div>
                   </div>
-                  {user?.id === currentUserId && user.id !== follower.id && (
+                  {user && user.id === currentUserId && user.id !== follower.id && (
                     <Button
                       variant="outline"
                       size="sm"

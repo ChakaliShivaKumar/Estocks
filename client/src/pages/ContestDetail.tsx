@@ -220,17 +220,19 @@ export default function ContestDetail() {
           </TabsList>
 
           <TabsContent value="leaderboard" className="space-y-4">
-            <EnhancedLeaderboard 
-              contestId={contestId} 
-              userId={user?.id}
-            />
+            {contestId && (
+              <EnhancedLeaderboard 
+                contestId={contestId} 
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="comments" className="space-y-4">
-            <ContestComments contestId={contestId} />
+            {contestId && <ContestComments contestId={contestId} />}
           </TabsContent>
         </Tabs>
       </div>
     </div>
   );
 }
+

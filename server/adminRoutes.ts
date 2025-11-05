@@ -70,7 +70,11 @@ export function setupAdminRoutes(app: Express) {
         startTime,
         endTime,
         status: validatedData.status,
-        featured: validatedData.featured
+        featured: validatedData.featured,
+        visibility: 'public',
+        inviteCode: null,
+        createdBy: null,
+        allowFriends: true
       });
 
       // Schedule the contest if it's upcoming

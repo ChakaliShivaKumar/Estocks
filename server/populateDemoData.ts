@@ -54,8 +54,7 @@ async function populateDemoPerformanceData() {
             // Record the performance data
             await storage.createPortfolioPerformance({
               entryId: entry.id,
-              portfolioValue: portfolioValue.toString(),
-              timestamp: timestamp
+              portfolioValue: portfolioValue.toString()
             });
           }
         }
