@@ -193,3 +193,4 @@ export function DailyChallenges({ userId, className }: DailyChallengesProps) {
     </Card>
   );
 }
+

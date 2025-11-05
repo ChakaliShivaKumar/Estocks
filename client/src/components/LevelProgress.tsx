@@ -43,3 +43,4 @@ export function LevelProgress({ level, experiencePoints, className }: LevelProgr
     </Card>
   );
 }
+

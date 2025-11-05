@@ -9,8 +9,15 @@ import { contestScheduler } from "./scheduler";
 import { stockPriceService } from "./stockPriceService";
 import { createWebSocketService } from "./websocketService";
 import { gamificationScheduler } from "./gamificationScheduler";
+import { configEnv } from "./config/env";
+import { securityHeaders, apiLimiter, authLimiter } from "./middleware/security";
+import { errorHandler } from "./middleware/errorHandler";
+import { healthCheck, readinessCheck, livenessCheck } from "./middleware/healthCheck";
 
 const app = express();
+
+// Security headers (must be first)
+app.use(securityHeaders);
 
 // Configure CORS for mobile app support
 app.use(cors({
@@ -18,8 +25,13 @@ app.use(cors({
     // Allow requests from Capacitor mobile apps (no origin header)
     if (!origin) return callback(null, true);
     
+    // Allow configured origin
+    if (configEnv.corsOrigin && origin === configEnv.corsOrigin) {
+      return callback(null, true);
+    }
+    
     // Allow localhost for development
-    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    if (configEnv.isDevelopment && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
       return callback(null, true);
     }
     
@@ -35,9 +47,18 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Body parsing middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 app.use(cookieParser());
+
+// Health check endpoints (before rate limiting)
+app.get("/health", healthCheck);
+app.get("/ready", readinessCheck);
+app.get("/live", livenessCheck);
+
+// Rate limiting (apply to API routes)
+app.use("/api", apiLimiter);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -81,18 +102,13 @@ app.use((req, res, next) => {
   // Initialize WebSocket service
   const wsService = createWebSocketService(server);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
+  // Global error handler (must be last middleware)
+  app.use(errorHandler);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  if (configEnv.isDevelopment) {
     await setupVite(app, server);
   } else {
     serveStatic(app);
@@ -101,12 +117,12 @@ app.use((req, res, next) => {
   // Start schedulers
   gamificationScheduler.start();
 
-  const port = process.env.PORT || 3000;
+  const port = configEnv.port;
   server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`🚀 Server running on port ${port} in ${configEnv.nodeEnv} mode`);
   });
 })();

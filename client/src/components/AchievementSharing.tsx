@@ -446,3 +446,4 @@ function getPlatformColor(platform: string) {
       return 'text-gray-500';
   }
 }
+

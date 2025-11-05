@@ -263,3 +263,4 @@ export function ReferralSystem({ userId, totalReferrals, className }: ReferralSy
     </Card>
   );
 }
+

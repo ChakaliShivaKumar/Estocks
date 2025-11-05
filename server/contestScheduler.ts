@@ -40,3 +40,4 @@ export class ContestScheduler {
 
 // Export singleton instance
 export const contestScheduler = new ContestScheduler();
+

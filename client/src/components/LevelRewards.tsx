@@ -227,3 +227,4 @@ export function LevelRewards({ userId, className }: LevelRewardsProps) {
     </Card>
   );
 }
+

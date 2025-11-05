@@ -60,3 +60,4 @@ export class GamificationScheduler {
 
 // Export singleton instance
 export const gamificationScheduler = new GamificationScheduler();
+

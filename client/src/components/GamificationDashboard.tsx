@@ -244,3 +244,4 @@ export function GamificationDashboard({ userId, className }: GamificationDashboa
     </div>
   );
 }
+

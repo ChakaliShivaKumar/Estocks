@@ -56,17 +56,12 @@ import {
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
 import { eq, desc, asc, and, sql } from "drizzle-orm";
-import { config } from "dotenv";
-
-// Load environment variables
-config();
+import { configEnv } from "./config/env";
 
 // Database connection
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is not set");
-}
-const sql = neon(process.env.DATABASE_URL);
-const db = drizzle(sql);
+
+const sql = neon(configEnv.databaseUrl);
+export const db = drizzle(sql);
 
 export interface IStorage {
   // User methods

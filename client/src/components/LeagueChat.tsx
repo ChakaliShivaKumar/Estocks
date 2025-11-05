@@ -394,3 +394,4 @@ export function LeagueChat({ leagueId, members }: LeagueChatProps) {
     </div>
   );
 }
+
