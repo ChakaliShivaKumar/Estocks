@@ -11,6 +11,7 @@ export interface Stock {
   currentPrice: number;
   priceChange: number;
   priceChangePercent: number;
+  sector?: string;
 }
 
 interface StockCardProps {

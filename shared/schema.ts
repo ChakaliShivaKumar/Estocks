@@ -87,6 +87,18 @@ export const portfolioHoldings = pgTable("portfolio_holdings", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Saved portfolios (user-created portfolios that can be reused)
+export const savedPortfolios = pgTable("saved_portfolios", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  holdings: text("holdings").notNull(), // JSON string of [{ stockSymbol, coinsInvested }]
+  totalCoins: integer("total_coins").notNull().default(100),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Price history for stocks (optional - for charts later)
 export const priceHistory = pgTable("price_history", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -194,6 +206,12 @@ export const insertContestSchema = createInsertSchema(contests);
 export const insertContestEntrySchema = createInsertSchema(contestEntries);
 export const insertPortfolioHoldingSchema = createInsertSchema(portfolioHoldings);
 export const insertPortfolioPerformanceSchema = createInsertSchema(portfolioPerformance);
+export const insertSavedPortfolioSchema = createInsertSchema(savedPortfolios).pick({
+  name: true,
+  description: true,
+  holdings: true,
+  totalCoins: true,
+});
 export const insertLeaderboardHistorySchema = createInsertSchema(leaderboardHistory);
 export const insertAchievementSchema = createInsertSchema(achievements);
 export const insertUserAchievementSchema = createInsertSchema(userAchievements);
@@ -412,6 +430,8 @@ export type Contest = typeof contests.$inferSelect;
 export type ContestEntry = typeof contestEntries.$inferSelect;
 export type PortfolioHolding = typeof portfolioHoldings.$inferSelect;
 export type PortfolioPerformance = typeof portfolioPerformance.$inferSelect;
+export type SavedPortfolio = typeof savedPortfolios.$inferSelect;
+export type InsertSavedPortfolio = typeof savedPortfolios.$inferInsert;
 export type LeaderboardHistory = typeof leaderboardHistory.$inferSelect;
 export type Achievement = typeof achievements.$inferSelect;
 export type UserAchievement = typeof userAchievements.$inferSelect;

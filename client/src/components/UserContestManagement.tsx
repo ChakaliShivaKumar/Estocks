@@ -35,7 +35,11 @@ interface Contest {
   createdAt: string;
 }
 
-export function UserContestManagement() {
+interface UserContestManagementProps {
+  onContestCreated?: () => void;
+}
+
+export function UserContestManagement({ onContestCreated }: UserContestManagementProps) {
   const { user } = useAuth();
   const [contests, setContests] = useState<Contest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,6 +78,7 @@ export function UserContestManagement() {
   const handleContestCreated = (contest: Contest) => {
     setContests(prev => [contest, ...prev]);
     setActiveTab("my-contests");
+    onContestCreated?.();
   };
 
   const handleDeleteContest = async (contestId: string) => {

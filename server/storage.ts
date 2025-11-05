@@ -26,12 +26,14 @@ import {
   type AchievementShare,
   type ChatMessage,
   type ContestInvitation,
+  type SavedPortfolio,
   users,
   stocks,
   contests,
   contestEntries,
   portfolioHoldings,
   portfolioPerformance,
+  savedPortfolios,
   leaderboardHistory,
   achievements,
   userAchievements,
@@ -202,6 +204,13 @@ export interface IStorage {
   getSentContestInvitations(userId: string): Promise<Array<ContestInvitation & { contest: Contest; invitee: User }>>;
   acceptContestInvitation(invitationId: string, userId: string): Promise<void>;
   declineContestInvitation(invitationId: string, userId: string): Promise<void>;
+  
+  // Saved portfolio methods
+  createSavedPortfolio(userId: string, name: string, description: string | null, holdings: Array<{ stockSymbol: string; coinsInvested: number }>, totalCoins: number): Promise<SavedPortfolio>;
+  getSavedPortfolios(userId: string): Promise<SavedPortfolio[]>;
+  getSavedPortfolio(id: string, userId: string): Promise<SavedPortfolio | undefined>;
+  updateSavedPortfolio(id: string, userId: string, updates: { name?: string; description?: string | null; holdings?: Array<{ stockSymbol: string; coinsInvested: number }>; totalCoins?: number }): Promise<SavedPortfolio>;
+  deleteSavedPortfolio(id: string, userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2216,6 +2225,80 @@ export class DatabaseStorage implements IStorage {
           });
         }
       }
+    }
+  }
+
+  // Saved portfolio methods
+  async createSavedPortfolio(
+    userId: string,
+    name: string,
+    description: string | null,
+    holdings: Array<{ stockSymbol: string; coinsInvested: number }>,
+    totalCoins: number
+  ): Promise<SavedPortfolio> {
+    const result = await db.insert(savedPortfolios).values({
+      userId,
+      name,
+      description,
+      holdings: JSON.stringify(holdings),
+      totalCoins,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    return result[0];
+  }
+
+  async getSavedPortfolios(userId: string): Promise<SavedPortfolio[]> {
+    return await db.select().from(savedPortfolios)
+      .where(eq(savedPortfolios.userId, userId))
+      .orderBy(desc(savedPortfolios.updatedAt));
+  }
+
+  async getSavedPortfolio(id: string, userId: string): Promise<SavedPortfolio | undefined> {
+    const result = await db.select().from(savedPortfolios)
+      .where(and(eq(savedPortfolios.id, id), eq(savedPortfolios.userId, userId)))
+      .limit(1);
+    return result[0];
+  }
+
+  async updateSavedPortfolio(
+    id: string,
+    userId: string,
+    updates: {
+      name?: string;
+      description?: string | null;
+      holdings?: Array<{ stockSymbol: string; coinsInvested: number }>;
+      totalCoins?: number;
+    }
+  ): Promise<SavedPortfolio> {
+    const updateData: any = {
+      updatedAt: new Date()
+    };
+
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.holdings !== undefined) updateData.holdings = JSON.stringify(updates.holdings);
+    if (updates.totalCoins !== undefined) updateData.totalCoins = updates.totalCoins;
+
+    const result = await db.update(savedPortfolios)
+      .set(updateData)
+      .where(and(eq(savedPortfolios.id, id), eq(savedPortfolios.userId, userId)))
+      .returning();
+    
+    if (result.length === 0) {
+      throw new Error('Saved portfolio not found or access denied');
+    }
+    
+    return result[0];
+  }
+
+  async deleteSavedPortfolio(id: string, userId: string): Promise<void> {
+    const result = await db.delete(savedPortfolios)
+      .where(and(eq(savedPortfolios.id, id), eq(savedPortfolios.userId, userId)))
+      .returning();
+    
+    if (result.length === 0) {
+      throw new Error('Saved portfolio not found or access denied');
     }
   }
 }

@@ -21,6 +21,7 @@
     "db:push": "drizzle-kit push",
     "db:seed": "tsx server/seed.ts",
     "db:setup": "npm run db:push && npm run db:seed",
+    "check:contests": "tsx check-contests.ts",
     "admin:setup": "tsx server/addAdminData.ts",
     "demo:performance": "tsx server/populateDemoData.ts",
     "demo:achievements": "tsx server/populateAchievements.ts",

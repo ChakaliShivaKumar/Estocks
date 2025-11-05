@@ -33,8 +33,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Contests API
   app.get("/api/contests", async (req, res) => {
     try {
-      const contests = await storage.getActiveContests();
-      res.json(contests);
+      const status = req.query.status as string | undefined;
+      
+      // If status filter is provided, filter by status
+      if (status && ['active', 'upcoming', 'completed'].includes(status)) {
+        const allContests = await storage.getAllContests();
+        const filtered = allContests.filter(c => c.status === status);
+        res.json(filtered);
+      } else {
+        // Return all active and upcoming contests by default
+        const allContests = await storage.getAllContests();
+        const now = new Date();
+        const activeAndUpcoming = allContests.filter(c => {
+          const endTime = new Date(c.endTime);
+          const startTime = new Date(c.startTime);
+          // Show active contests that haven't ended yet (regardless of visibility)
+          // Show upcoming contests that haven't started yet but haven't ended
+          // This ensures newly created active contests are shown immediately
+          const isActive = c.status === 'active' && endTime > now;
+          const isUpcoming = c.status === 'upcoming' && endTime > now && startTime > now;
+          return isActive || isUpcoming;
+        });
+        res.json(activeAndUpcoming);
+      }
     } catch (error) {
       console.error("Error fetching contests:", error);
       res.status(500).json({ error: "Failed to fetch contests" });
@@ -103,11 +124,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/contests/:id/join", authenticateToken, async (req: AuthRequest, res) => {
     try {
       const { id: contestId } = req.params;
-      const { portfolio } = req.body;
+      const { portfolio, portfolioId } = req.body;
       const userId = req.user!.id; // Get user ID from authenticated session
 
+      let portfolioToUse: Array<{ stockSymbol: string; coinsInvested: number }> = [];
+
+      // If portfolioId is provided, load from saved portfolios
+      if (portfolioId) {
+        const savedPortfolio = await storage.getSavedPortfolio(portfolioId, userId);
+        if (!savedPortfolio) {
+          return res.status(404).json({ error: "Saved portfolio not found" });
+        }
+        portfolioToUse = JSON.parse(savedPortfolio.holdings);
+      } else if (portfolio && Array.isArray(portfolio)) {
+        portfolioToUse = portfolio;
+      } else {
+        return res.status(400).json({ error: "Either portfolio or portfolioId must be provided" });
+      }
+
       // Validate portfolio (should total 100 coins)
-      const totalCoins = portfolio.reduce((sum: number, holding: any) => sum + holding.coinsInvested, 0);
+      const totalCoins = portfolioToUse.reduce((sum: number, holding: any) => sum + (holding.coinsInvested || 0), 0);
       if (totalCoins !== 100) {
         return res.status(400).json({ error: "Portfolio must total exactly 100 coins" });
       }
@@ -135,7 +171,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Create portfolio holdings
-      for (const holding of portfolio) {
+      for (const holding of portfolioToUse) {
         const stock = await storage.getStock(holding.stockSymbol);
         if (!stock) {
           return res.status(400).json({ error: `Invalid stock: ${holding.stockSymbol}` });
@@ -155,6 +191,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error joining contest:", error);
       res.status(500).json({ error: "Failed to join contest" });
+    }
+  });
+
+  // Saved Portfolio Management Routes
+  app.post("/api/portfolios", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user!.id;
+      const { name, description, portfolio, totalCoins } = req.body;
+
+      if (!name || !portfolio || !Array.isArray(portfolio)) {
+        return res.status(400).json({ error: "Missing required fields: name and portfolio array" });
+      }
+
+      // Validate portfolio
+      const calculatedTotal = portfolio.reduce((sum: number, holding: any) => sum + (holding.coinsInvested || 0), 0);
+      const portfolioTotal = totalCoins || calculatedTotal;
+
+      if (portfolioTotal !== 100) {
+        return res.status(400).json({ error: "Portfolio must total exactly 100 coins" });
+      }
+
+      // Validate all stocks exist
+      for (const holding of portfolio) {
+        const stock = await storage.getStock(holding.stockSymbol);
+        if (!stock) {
+          return res.status(400).json({ error: `Invalid stock: ${holding.stockSymbol}` });
+        }
+      }
+
+      const savedPortfolio = await storage.createSavedPortfolio(
+        userId,
+        name,
+        description || null,
+        portfolio.map((h: any) => ({ stockSymbol: h.stockSymbol, coinsInvested: h.coinsInvested })),
+        portfolioTotal
+      );
+
+      res.status(201).json(savedPortfolio);
+    } catch (error) {
+      console.error("Error creating saved portfolio:", error);
+      res.status(500).json({ error: "Failed to create portfolio" });
+    }
+  });
+
+  app.get("/api/portfolios", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.user!.id;
+      const portfolios = await storage.getSavedPortfolios(userId);
+      
+      // Parse holdings JSON for each portfolio
+      const portfoliosWithParsedHoldings = portfolios.map(p => ({
+        ...p,
+        holdings: JSON.parse(p.holdings)
+      }));
+      
+      res.json(portfoliosWithParsedHoldings);
+    } catch (error) {
+      console.error("Error fetching saved portfolios:", error);
+      res.status(500).json({ error: "Failed to fetch portfolios" });
+    }
+  });
+
+  app.get("/api/portfolios/:id", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      
+      const portfolio = await storage.getSavedPortfolio(id, userId);
+      
+      if (!portfolio) {
+        return res.status(404).json({ error: "Portfolio not found" });
+      }
+
+      // Parse holdings JSON
+      const portfolioWithParsedHoldings = {
+        ...portfolio,
+        holdings: JSON.parse(portfolio.holdings)
+      };
+      
+      res.json(portfolioWithParsedHoldings);
+    } catch (error) {
+      console.error("Error fetching saved portfolio:", error);
+      res.status(500).json({ error: "Failed to fetch portfolio" });
+    }
+  });
+
+  app.put("/api/portfolios/:id", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+      const { name, description, portfolio, totalCoins } = req.body;
+
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (description !== undefined) updates.description = description || null;
+      if (portfolio !== undefined) {
+        // Validate portfolio
+        const calculatedTotal = portfolio.reduce((sum: number, holding: any) => sum + (holding.coinsInvested || 0), 0);
+        const portfolioTotal = totalCoins || calculatedTotal;
+
+        if (portfolioTotal !== 100) {
+          return res.status(400).json({ error: "Portfolio must total exactly 100 coins" });
+        }
+
+        updates.holdings = portfolio.map((h: any) => ({ stockSymbol: h.stockSymbol, coinsInvested: h.coinsInvested }));
+        updates.totalCoins = portfolioTotal;
+      }
+
+      const updatedPortfolio = await storage.updateSavedPortfolio(id, userId, updates);
+      
+      // Parse holdings JSON
+      const portfolioWithParsedHoldings = {
+        ...updatedPortfolio,
+        holdings: JSON.parse(updatedPortfolio.holdings)
+      };
+      
+      res.json(portfolioWithParsedHoldings);
+    } catch (error) {
+      console.error("Error updating saved portfolio:", error);
+      if (error instanceof Error && error.message.includes('not found')) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to update portfolio" });
+      }
+    }
+  });
+
+  app.delete("/api/portfolios/:id", authenticateToken, async (req: AuthRequest, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+
+      await storage.deleteSavedPortfolio(id, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting saved portfolio:", error);
+      if (error instanceof Error && error.message.includes('not found')) {
+        res.status(404).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to delete portfolio" });
+      }
     }
   });
 
@@ -179,8 +356,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const end = new Date(endTime);
       const now = new Date();
 
-      if (start <= now) {
-        return res.status(400).json({ error: "Start time must be in the future" });
+      // Allow contests to start immediately (within the last minute)
+      const startThreshold = new Date(now.getTime() - 60 * 1000);
+      if (start < startThreshold) {
+        return res.status(400).json({ error: "Start time cannot be more than 1 minute in the past" });
       }
 
       if (end <= start) {
@@ -193,6 +372,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         inviteCode = Math.random().toString(36).substring(2, 12).toUpperCase();
       }
 
+      // Determine contest status based on start time
+      const contestStatus = start <= now ? 'active' : 'upcoming';
+
       const contest = await storage.createUserContest({
         name,
         description,
@@ -201,7 +383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         maxParticipants: parseInt(maxParticipants),
         startTime: start,
         endTime: end,
-        status: 'upcoming',
+        status: contestStatus,
         featured: false,
         createdBy: userId,
         visibility: visibility || 'public',

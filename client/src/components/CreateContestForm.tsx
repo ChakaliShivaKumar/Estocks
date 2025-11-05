@@ -25,11 +25,11 @@ export function CreateContestForm({ onSuccess, onCancel }: CreateContestFormProp
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    entryFee: "",
-    prizePool: "",
-    maxParticipants: "",
+    entryFee: "50",
+    prizePool: "500",
+    maxParticipants: "100",
     startTime: new Date(),
-    endTime: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+    endTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
   });
 
   const handleInputChange = (field: string, value: any) => {
@@ -73,6 +73,10 @@ export function CreateContestForm({ onSuccess, onCancel }: CreateContestFormProp
       }
 
       const contest = await response.json();
+      
+      // Show success message
+      alert(`Contest "${contest.name}" created successfully! ${contest.status === 'active' ? 'It\'s now active and visible to all users.' : 'It will start at the scheduled time.'}`);
+      
       onSuccess?.(contest);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create contest');
@@ -210,7 +214,7 @@ export function CreateContestForm({ onSuccess, onCancel }: CreateContestFormProp
                   mode="single"
                   selected={formData.startTime}
                   onSelect={(date) => date && handleInputChange('startTime', date)}
-                  disabled={(date) => date < new Date()}
+                  disabled={(date) => date < new Date(Date.now() - 60 * 1000)}
                   initialFocus
                 />
               </PopoverContent>

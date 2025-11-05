@@ -68,49 +68,38 @@ const initialStocks = [
   },
 ];
 
-// Initial contest data
+// Initial contest data - 3 Daily Contests
 const initialContests = [
   {
     name: "Daily Tech Titans",
-    description: "Focus on IT & Technology stocks. 100 coins budget.",
-    entryFee: 500,
-    prizePool: 50000,
-    maxParticipants: 1000,
+    description: "Focus on IT & Technology stocks. High volatility, high rewards. Perfect for tech enthusiasts!",
+    entryFee: 50,
+    prizePool: 500,
+    maxParticipants: 100,
     startTime: new Date(),
-    endTime: new Date(Date.now() + 4 * 60 * 60 * 1000), // 4 hours from now
+    endTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
     status: "active" as const,
     featured: true,
   },
   {
-    name: "Banking Bonanza",
-    description: "Bank & Financial sector stocks only. 100 coins budget.",
-    entryFee: 1000,
-    prizePool: 100000,
-    maxParticipants: 500,
+    name: "Daily Market Masters",
+    description: "All sectors welcome! Trade across diverse stocks and compete for the top spot.",
+    entryFee: 50,
+    prizePool: 500,
+    maxParticipants: 100,
     startTime: new Date(),
-    endTime: new Date(Date.now() + 1 * 60 * 60 * 1000), // 1 hour from now
+    endTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
     status: "active" as const,
-    featured: false,
+    featured: true,
   },
   {
-    name: "Weekly Winners",
-    description: "All NSE stocks allowed. 100 coins budget.",
-    entryFee: 2000,
-    prizePool: 500000,
-    maxParticipants: 2000,
+    name: "Daily Flash Challenge",
+    description: "Quick 2-hour rapid trading contest. Fast decisions, quick rewards!",
+    entryFee: 25,
+    prizePool: 250,
+    maxParticipants: 50,
     startTime: new Date(),
-    endTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
-    status: "active" as const,
-    featured: false,
-  },
-  {
-    name: "Beginner's Luck",
-    description: "New players only. 100 coins budget.",
-    entryFee: 100,
-    prizePool: 10000,
-    maxParticipants: 1000,
-    startTime: new Date(),
-    endTime: new Date(Date.now() + 6 * 60 * 60 * 1000), // 6 hours from now
+    endTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
     status: "active" as const,
     featured: false,
   },
