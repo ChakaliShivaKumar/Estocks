@@ -4,20 +4,10 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { setupAuthRoutes } from "./authRoutes";
 import { setupAdminRoutes } from "./adminRoutes";
-import { setupVite, serveStatic, log } from "./vite";
-import { contestScheduler } from "./scheduler";
-import { stockPriceService } from "./stockPriceService";
 import { createWebSocketService } from "./websocketService";
 import { gamificationScheduler } from "./gamificationScheduler";
-import { configEnv } from "./config/env";
-import { securityHeaders, apiLimiter, authLimiter } from "./middleware/security";
-import { errorHandler } from "./middleware/errorHandler";
-import { healthCheck, readinessCheck, livenessCheck } from "./middleware/healthCheck";
 
 const app = express();
-
-// Security headers (must be first)
-app.use(securityHeaders);
 
 // Configure CORS for mobile app support
 app.use(cors({
@@ -25,13 +15,8 @@ app.use(cors({
     // Allow requests from Capacitor mobile apps (no origin header)
     if (!origin) return callback(null, true);
     
-    // Allow configured origin
-    if (configEnv.corsOrigin && origin === configEnv.corsOrigin) {
-      return callback(null, true);
-    }
-    
     // Allow localhost for development
-    if (configEnv.isDevelopment && (origin.includes('localhost') || origin.includes('127.0.0.1'))) {
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
       return callback(null, true);
     }
     
@@ -47,46 +32,22 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
-// Health check endpoints (before rate limiting)
-app.get("/health", healthCheck);
-app.get("/ready", readinessCheck);
-app.get("/live", livenessCheck);
-
-// Rate limiting (apply to API routes)
-app.use("/api", apiLimiter);
-
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
+  
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+      console.log(`${req.method} ${path} ${res.statusCode} in ${duration}ms`);
     }
   });
-
+  
   next();
 });
 
@@ -97,10 +58,52 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-console.log('🚀 Starting Estocks server...');
+console.log('🚀 Starting Estocks Backend API...');
 console.log('📊 Database URL configured:', process.env.DATABASE_URL ? 'Yes' : 'No');
 console.log('🔑 JWT Secret configured:', process.env.JWT_SECRET ? 'Yes' : 'No');
 console.log('🌍 Environment:', process.env.NODE_ENV || 'development');
+
+// Health check endpoint for Render
+app.get('/health', async (req, res) => {
+  try {
+    // Simple database connection test
+    const { storage } = await import('./storage');
+    await storage.getAllStocks(); // This will test DB connection
+    
+    res.status(200).json({ 
+      status: 'ok', 
+      database: 'connected',
+      api: 'running',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  } catch (error) {
+    console.error('Health check failed:', error);
+    res.status(503).json({ 
+      status: 'unhealthy', 
+      database: 'disconnected',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  }
+});
+
+// API Info endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    name: 'Estocks API',
+    version: '1.0.0',
+    description: 'Backend API for Estocks trading app',
+    endpoints: {
+      auth: '/api/auth/*',
+      stocks: '/api/stocks/*',
+      contests: '/api/contests/*',
+      users: '/api/users/*',
+      health: '/health'
+    }
+  });
+});
 
 // Setup authentication routes
 setupAuthRoutes(app);
@@ -108,33 +111,30 @@ setupAuthRoutes(app);
 // Setup admin routes
 setupAdminRoutes(app);
 
-// Global error handler (must be last middleware)
-app.use(errorHandler);
+// Setup error handling middleware
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+
+  res.status(status).json({ message });
+  console.error('Server error:', err);
+});
 
 // Start the server
-const port = configEnv.port;
+const port = process.env.PORT || 3000;
 
-async function startServer() {
+async function startBackendAPI() {
   try {
-    console.log('🔧 Setting up routes...');
+    console.log('🔧 Setting up API routes...');
     const server = await registerRoutes(app);
 
-    console.log('📁 Setting up static file serving...');
-    // importantly only setup vite in development and after
-    // setting up all the other routes so the catch-all route
-    // doesn't interfere with the other routes
-    if (configEnv.isDevelopment) {
-      await setupVite(app, server);
-    } else {
-      serveStatic(app);
-    }
-
-    console.log(`🌐 Starting server on port ${port}...`);
-    server.listen(Number(port), "0.0.0.0", () => {
-      log(`🚀 Server running on port ${port} in ${configEnv.nodeEnv} mode`);
-      console.log(`✅ Estocks server running on port ${port}`);
-      console.log(`🌐 Server URL: http://localhost:${port}`);
-      console.log('🎉 Server startup complete!');
+    console.log(`🌐 Starting backend API on port ${port}...`);
+    server.listen(port, "0.0.0.0", () => {
+      console.log(`✅ Estocks Backend API running on port ${port}`);
+      console.log(`🌐 API URL: http://localhost:${port}`);
+      console.log(`📋 Health check: http://localhost:${port}/health`);
+      console.log(`📖 API info: http://localhost:${port}/api`);
+      console.log('🎉 Backend API startup complete!');
       
       // Initialize services after server is running
       console.log('🔌 Initializing WebSocket service...');
@@ -155,10 +155,10 @@ async function startServer() {
     });
 
   } catch (error) {
-    console.error('❌ Failed to start server:', error);
+    console.error('❌ Failed to start backend API:', error);
     console.error('Error details:', error);
     process.exit(1);
   }
 }
 
-startServer();
+startBackendAPI();
