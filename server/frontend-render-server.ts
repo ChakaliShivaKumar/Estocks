@@ -72,23 +72,25 @@ app.get('/health', async (req, res) => {
 
 // Setup API routes
 console.log('🔧 Setting up API routes...');
-try {
-  // Setup authentication routes
-  setupAuthRoutes(app);
-  console.log('✅ Authentication routes configured');
-  
-  // Setup admin routes
-  setupAdminRoutes(app);
-  console.log('✅ Admin routes configured');
-  
-  // Setup main API routes
-  const server = await registerRoutes(app);
-  console.log('✅ Main API routes configured');
-  
-} catch (error) {
-  console.error('❌ Failed to set up API routes:', error);
-  console.log('⚠️ Running with basic API endpoints only');
-}
+(async () => {
+  try {
+    // Setup authentication routes
+    setupAuthRoutes(app);
+    console.log('✅ Authentication routes configured');
+    
+    // Setup admin routes
+    setupAdminRoutes(app);
+    console.log('✅ Admin routes configured');
+    
+    // Setup main API routes
+    await registerRoutes(app);
+    console.log('✅ Main API routes configured');
+    
+  } catch (error) {
+    console.error('❌ Failed to set up API routes:', error);
+    console.log('⚠️ Running with basic API endpoints only');
+  }
+})();
 
 // API endpoint for root path
 app.get('/api', (req, res) => {
@@ -144,7 +146,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 // Start the server
-const port = process.env.PORT || 10000;
+const port = Number(process.env.PORT) || 10000;
 
 async function startServer() {
   app.listen(port, "0.0.0.0", () => {

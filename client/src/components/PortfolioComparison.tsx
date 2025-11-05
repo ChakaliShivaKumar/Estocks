@@ -167,7 +167,7 @@ export function PortfolioComparison({ onCompare }: PortfolioComparisonProps) {
               />
               <Bar 
                 dataKey="roi" 
-                fill={(entry: any) => entry.isCurrentUser ? "#3b82f6" : "#22c55e"}
+                fill="#22c55e"
                 radius={[2, 2, 0, 0]}
               />
             </BarChart>

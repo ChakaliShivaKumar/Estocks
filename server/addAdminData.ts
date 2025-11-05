@@ -81,7 +81,13 @@ async function addAdminData() {
     ];
 
     for (const contestData of contests) {
-      const contest = await storage.createContest(contestData);
+      const contest = await storage.createContest({
+        ...contestData,
+        visibility: 'public',
+        inviteCode: null,
+        createdBy: null,
+        allowFriends: true
+      });
       console.log('✅ Contest created:', contest.name);
     }
 

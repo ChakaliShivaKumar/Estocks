@@ -359,7 +359,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 // Start the server
-const port = process.env.PORT || 10000;
+const port = Number(process.env.PORT) || 10000;
 
 app.listen(port, "0.0.0.0", () => {
   console.log(`✅ Estocks Frontend + API Server running on port ${port}`);

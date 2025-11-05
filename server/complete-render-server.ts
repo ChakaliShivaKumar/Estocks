@@ -192,7 +192,7 @@ async function startServer() {
     }
 
     console.log(`🌐 Starting server on port ${port}...`);
-    server.listen(port, "0.0.0.0", () => {
+    server.listen(Number(port), "0.0.0.0", () => {
       console.log(`✅ Estocks Complete Render Server running on port ${port}`);
       console.log(`🌐 Server URL: http://localhost:${port}`);
       console.log('🎉 Server startup complete!');
