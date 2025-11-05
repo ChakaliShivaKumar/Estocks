@@ -83,7 +83,7 @@ export function ProfileEditForm({ onSave }: ProfileEditFormProps) {
         }
         break;
       case 'phoneNumber':
-        if (value && !/^[\+]?[1-9][\d]{0,15}$/.test(value.replace(/[\s\-\(\)]/g, ''))) {
+        if (value && !/^[+]?[1-9]\d{0,15}$/.test(value.replace(/[\s\-()]/g, ''))) {
           errors.phoneNumber = 'Please enter a valid phone number';
         } else {
           delete errors.phoneNumber;

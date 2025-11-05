@@ -112,7 +112,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 // Start the server
 const port = process.env.PORT || 10000;
 
-app.listen(port, "0.0.0.0", () => {
+app.listen(Number(port), "0.0.0.0", () => {
   console.log(`✅ Estocks Simple Render Server running on port ${port}`);
   console.log(`🌐 Server URL: http://localhost:${port}`);
   console.log('🎉 Server startup complete!');

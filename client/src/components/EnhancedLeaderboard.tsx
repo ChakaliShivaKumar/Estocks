@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LeaderboardEntry } from "./LeaderboardEntry";
+import { LeaderboardEntry as LeaderboardEntryComponent } from "./LeaderboardEntry";
 import { Trophy, TrendingUp, History, Users, RefreshCw } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,7 +12,7 @@ interface EnhancedLeaderboardProps {
   contestId?: string;
 }
 
-interface LeaderboardEntry {
+interface LeaderboardEntryData {
   rank: number;
   userId: string;
   username: string;
@@ -31,7 +31,7 @@ interface LeaderboardEntry {
 }
 
 interface EnhancedLeaderboardData {
-  leaderboard: LeaderboardEntry[];
+  leaderboard: LeaderboardEntryData[];
   userRank?: number;
   totalParticipants: number;
 }
@@ -200,7 +200,7 @@ export function EnhancedLeaderboard({ contestId }: EnhancedLeaderboardProps) {
 
         <TabsContent value="current" className="space-y-3">
           {leaderboardData.leaderboard.map((entry) => (
-            <LeaderboardEntry
+            <LeaderboardEntryComponent
               key={entry.userId}
               entry={entry}
               onFollow={handleFollow}
@@ -213,7 +213,7 @@ export function EnhancedLeaderboard({ contestId }: EnhancedLeaderboardProps) {
           {leaderboardData.leaderboard
             .filter(entry => entry.rank <= 10)
             .map((entry) => (
-              <LeaderboardEntry
+              <LeaderboardEntryComponent
                 key={entry.userId}
                 entry={entry}
                 onFollow={handleFollow}
@@ -226,7 +226,7 @@ export function EnhancedLeaderboard({ contestId }: EnhancedLeaderboardProps) {
           {leaderboardData.leaderboard
             .filter(entry => entry.isFollowing)
             .map((entry) => (
-              <LeaderboardEntry
+              <LeaderboardEntryComponent
                 key={entry.userId}
                 entry={entry}
                 onFollow={handleFollow}

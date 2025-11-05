@@ -127,7 +127,7 @@ async function startServer() {
     serveStatic(app);
 
     console.log(`🌐 Starting mobile server on port ${port}...`);
-    server.listen(port, "0.0.0.0", () => {
+    server.listen(Number(port), "0.0.0.0", () => {
       console.log(`✅ Estocks Mobile Server running on port ${port}`);
       console.log(`🌐 Server URL: http://localhost:${port}`);
       console.log(`📱 Mobile URL: http://172.20.7.203:${port}`);

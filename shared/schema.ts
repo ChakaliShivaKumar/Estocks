@@ -317,7 +317,7 @@ export const contestComments = pgTable("contest_comments", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   contestId: uuid("contest_id").notNull().references(() => contests.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  parentCommentId: uuid("parent_comment_id").references(() => contestComments.id, { onDelete: "cascade" }), // for replies
+  parentCommentId: uuid("parent_comment_id"), // for replies - self-reference handled separately
   content: text("content").notNull(),
   likes: integer("likes").notNull().default(0),
   isEdited: boolean("is_edited").notNull().default(false),

@@ -55,11 +55,10 @@ import {
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
-import { eq, desc, asc, and, sql } from "drizzle-orm";
+import { eq, desc, asc, and, isNull, sql as drizzleSql } from "drizzle-orm";
 import { configEnv } from "./config/env";
 
 // Database connection
-
 const sql = neon(configEnv.databaseUrl);
 export const db = drizzle(sql);
 
@@ -161,7 +160,7 @@ export interface IStorage {
   getFriends(userId: string): Promise<Array<User & { friendshipDate: Date }>>;
 
   // Private league methods
-  createPrivateLeague(league: Omit<PrivateLeague, 'id' | 'createdAt' | 'updatedAt'>): Promise<PrivateLeague>;
+  createPrivateLeague(league: Omit<PrivateLeague, 'id' | 'createdAt' | 'updatedAt' | 'inviteCode'>): Promise<PrivateLeague>;
   joinPrivateLeague(userId: string, inviteCode: string): Promise<PrivateLeague>;
   leavePrivateLeague(userId: string, leagueId: string): Promise<void>;
   getPrivateLeagues(userId: string): Promise<Array<PrivateLeague & { memberCount: number; isMember: boolean }>>;
@@ -590,10 +589,10 @@ export class DatabaseStorage implements IStorage {
 
   async checkAndAwardAchievements(userId: string, contestId?: string): Promise<Achievement[]> {
     const userStats = await this.getUserStats(userId);
-    const userAchievements = await this.getUserAchievements(userId);
+    const earnedAchievements = await this.getUserAchievements(userId);
     const allAchievements = await this.getAllAchievements();
     
-    const earnedAchievementIds = new Set(userAchievements.map(ua => ua.achievementId));
+    const earnedAchievementIds = new Set(earnedAchievements.map(ua => ua.achievementId));
     const newlyEarned: Achievement[] = [];
 
     for (const achievement of allAchievements) {
@@ -607,7 +606,7 @@ export class DatabaseStorage implements IStorage {
           earned = this.checkPerformanceAchievement(requirements, userStats);
           break;
         case 'social':
-          earned = this.checkSocialAchievement(requirements, userId);
+          earned = await this.checkSocialAchievement(requirements, userId);
           break;
         case 'milestone':
           earned = this.checkMilestoneAchievement(requirements, userStats);
@@ -685,6 +684,20 @@ export class DatabaseStorage implements IStorage {
       fullName: users.fullName,
       password: users.password,
       coinsBalance: users.coinsBalance,
+      profilePicture: users.profilePicture,
+      bio: users.bio,
+      phoneNumber: users.phoneNumber,
+      dateOfBirth: users.dateOfBirth,
+      location: users.location,
+      isAdmin: users.isAdmin,
+      level: users.level,
+      experiencePoints: users.experiencePoints,
+      currentStreak: users.currentStreak,
+      longestStreak: users.longestStreak,
+      lastActiveDate: users.lastActiveDate,
+      referralCode: users.referralCode,
+      referredBy: users.referredBy,
+      totalReferrals: users.totalReferrals,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       followedAt: socialConnections.createdAt
@@ -705,6 +718,20 @@ export class DatabaseStorage implements IStorage {
       fullName: users.fullName,
       password: users.password,
       coinsBalance: users.coinsBalance,
+      profilePicture: users.profilePicture,
+      bio: users.bio,
+      phoneNumber: users.phoneNumber,
+      dateOfBirth: users.dateOfBirth,
+      location: users.location,
+      isAdmin: users.isAdmin,
+      level: users.level,
+      experiencePoints: users.experiencePoints,
+      currentStreak: users.currentStreak,
+      longestStreak: users.longestStreak,
+      lastActiveDate: users.lastActiveDate,
+      referralCode: users.referralCode,
+      referredBy: users.referredBy,
+      totalReferrals: users.totalReferrals,
       createdAt: users.createdAt,
       updatedAt: users.updatedAt,
       followedAt: socialConnections.createdAt
@@ -787,9 +814,10 @@ export class DatabaseStorage implements IStorage {
       cashAmount: cashAmount.toString(),
       exchangeRate: (amount / cashAmount).toString(),
       paymentMethod,
-      paymentId,
+      paymentId: paymentId || null,
       status: 'completed',
-      description: `Purchased ${amount} coins for $${cashAmount}`
+      description: `Purchased ${amount} coins for $${cashAmount}`,
+      contestId: null
     });
   }
 
@@ -818,8 +846,11 @@ export class DatabaseStorage implements IStorage {
       coinsAfter: newBalance,
       cashAmount: cashAmount.toString(),
       exchangeRate: exchangeRate.toString(),
+      paymentMethod: null,
+      paymentId: null,
       status: 'completed',
-      description: `Exchanged ${coinsAmount} coins for $${cashAmount.toFixed(2)}`
+      description: `Exchanged ${coinsAmount} coins for $${cashAmount.toFixed(2)}`,
+      contestId: null
     });
   }
 
@@ -832,7 +863,7 @@ export class DatabaseStorage implements IStorage {
 
   // XP and Level System
   async addExperiencePoints(userId: string, amount: number, source: string, description: string, metadata?: any): Promise<void> {
-    await this.db.insert(xpTransactions).values({
+    await db.insert(xpTransactions).values({
       userId,
       amount,
       source,
@@ -841,14 +872,14 @@ export class DatabaseStorage implements IStorage {
     });
 
     // Update user's XP
-    const user = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (user.length === 0) return;
 
     const currentXP = user[0].experiencePoints + amount;
     const newLevel = this.calculateLevel(currentXP);
     const oldLevel = user[0].level;
 
-    await this.db.update(users)
+    await db.update(users)
       .set({ 
         experiencePoints: currentXP,
         level: newLevel,
@@ -882,7 +913,7 @@ export class DatabaseStorage implements IStorage {
     const coinReward = level * 100; // 100 coins per level
     const xpReward = level * 50; // 50 bonus XP per level
 
-    await this.db.insert(levelRewards).values([
+    await db.insert(levelRewards).values([
       {
         userId,
         level,
@@ -898,16 +929,16 @@ export class DatabaseStorage implements IStorage {
     ]);
 
     // Add coins to user balance
-    await this.db.update(users)
+    await db.update(users)
       .set({ 
-        coinsBalance: sql`coins_balance + ${coinReward}`,
+              coinsBalance: drizzleSql`coins_balance + ${coinReward}`,
         updatedAt: new Date()
       })
       .where(eq(users.id, userId));
   }
 
   async claimLevelReward(userId: string, rewardId: string): Promise<void> {
-    await this.db.update(levelRewards)
+    await db.update(levelRewards)
       .set({ 
         claimed: true,
         claimedAt: new Date()
@@ -919,7 +950,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUnclaimedLevelRewards(userId: string): Promise<LevelReward[]> {
-    return await this.db.select()
+    return await db.select()
       .from(levelRewards)
       .where(and(
         eq(levelRewards.userId, userId),
@@ -930,13 +961,13 @@ export class DatabaseStorage implements IStorage {
 
   // Daily Challenges
   async createDailyChallenge(challenge: Omit<DailyChallenge, 'id' | 'createdAt'>): Promise<DailyChallenge> {
-    const [newChallenge] = await this.db.insert(dailyChallenges).values(challenge).returning();
+    const [newChallenge] = await db.insert(dailyChallenges).values(challenge).returning();
     return newChallenge;
   }
 
   async getTodaysChallenges(): Promise<DailyChallenge[]> {
     const today = new Date().toISOString().split('T')[0];
-    return await this.db.select()
+    return await db.select()
       .from(dailyChallenges)
       .where(and(
         eq(dailyChallenges.date, today),
@@ -947,7 +978,7 @@ export class DatabaseStorage implements IStorage {
   async getUserChallengeProgress(userId: string, date?: string): Promise<UserDailyChallengeProgress[]> {
     const targetDate = date || new Date().toISOString().split('T')[0];
     
-    return await this.db.select()
+    return await db.select()
       .from(userDailyChallengeProgress)
       .innerJoin(dailyChallenges, eq(userDailyChallengeProgress.challengeId, dailyChallenges.id))
       .where(and(
@@ -958,17 +989,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateChallengeProgress(userId: string, challengeId: string, progress: number): Promise<void> {
-    const challenge = await this.db.select().from(dailyChallenges).where(eq(dailyChallenges.id, challengeId)).limit(1);
+    const challenge = await db.select().from(dailyChallenges).where(eq(dailyChallenges.id, challengeId)).limit(1);
     if (challenge.length === 0) return;
 
     const completed = progress >= challenge[0].target;
     
-    await this.db.update(userDailyChallengeProgress)
+    await db.update(userDailyChallengeProgress)
       .set({ 
         progress,
         completed,
-        completedAt: completed ? new Date() : null,
-        updatedAt: new Date()
+        completedAt: completed ? new Date() : null
       })
       .where(and(
         eq(userDailyChallengeProgress.userId, userId),
@@ -977,7 +1007,7 @@ export class DatabaseStorage implements IStorage {
 
     // Award XP and coins if completed and not yet claimed
     if (completed) {
-      const existingProgress = await this.db.select()
+      const existingProgress = await db.select()
         .from(userDailyChallengeProgress)
         .where(and(
           eq(userDailyChallengeProgress.userId, userId),
@@ -994,15 +1024,15 @@ export class DatabaseStorage implements IStorage {
         );
 
         if (challenge[0].rewardCoins > 0) {
-          await this.db.update(users)
+          await db.update(users)
             .set({ 
-              coinsBalance: sql`coins_balance + ${challenge[0].rewardCoins}`,
+              coinsBalance: drizzleSql`coins_balance + ${challenge[0].rewardCoins}`,
               updatedAt: new Date()
             })
             .where(eq(users.id, userId));
         }
 
-        await this.db.update(userDailyChallengeProgress)
+        await db.update(userDailyChallengeProgress)
           .set({ claimedReward: true })
           .where(and(
             eq(userDailyChallengeProgress.userId, userId),
@@ -1018,7 +1048,7 @@ export class DatabaseStorage implements IStorage {
 
     for (const challenge of todaysChallenges) {
       // Check if user already has progress for this challenge
-      const existing = await this.db.select()
+      const existing = await db.select()
         .from(userDailyChallengeProgress)
         .where(and(
           eq(userDailyChallengeProgress.userId, userId),
@@ -1027,7 +1057,7 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
 
       if (existing.length === 0) {
-        await this.db.insert(userDailyChallengeProgress).values({
+        await db.insert(userDailyChallengeProgress).values({
           userId,
           challengeId: challenge.id,
           progress: 0,
@@ -1041,7 +1071,7 @@ export class DatabaseStorage implements IStorage {
   // Streak Tracking
   async updateUserStreak(userId: string): Promise<void> {
     const today = new Date().toISOString().split('T')[0];
-    const user = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     
     if (user.length === 0) return;
 
@@ -1068,7 +1098,7 @@ export class DatabaseStorage implements IStorage {
 
     const longestStreak = Math.max(user[0].longestStreak, newStreak);
 
-    await this.db.update(users)
+    await db.update(users)
       .set({ 
         currentStreak: newStreak,
         longestStreak,
@@ -1087,7 +1117,7 @@ export class DatabaseStorage implements IStorage {
 
   // Referral System
   async generateReferralCode(userId: string): Promise<string> {
-    const user = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (user.length === 0) throw new Error('User not found');
 
     if (user[0].referralCode) {
@@ -1097,7 +1127,7 @@ export class DatabaseStorage implements IStorage {
     // Generate unique referral code
     const code = this.generateUniqueCode();
     
-    await this.db.update(users)
+    await db.update(users)
       .set({ referralCode: code })
       .where(eq(users.id, userId));
 
@@ -1115,26 +1145,26 @@ export class DatabaseStorage implements IStorage {
 
   async processReferral(referredUserId: string, referralCode: string): Promise<void> {
     // Find referrer by code
-    const referrer = await this.db.select().from(users).where(eq(users.referralCode, referralCode)).limit(1);
+    const referrer = await db.select().from(users).where(eq(users.referralCode, referralCode)).limit(1);
     if (referrer.length === 0) return;
 
     const referrerId = referrer[0].id;
 
     // Update referred user
-    await this.db.update(users)
+    await db.update(users)
       .set({ referredBy: referrerId })
       .where(eq(users.id, referredUserId));
 
     // Update referrer's total referrals
-    await this.db.update(users)
+    await db.update(users)
       .set({ 
-        totalReferrals: sql`total_referrals + 1`,
+        totalReferrals: drizzleSql`total_referrals + 1`,
         updatedAt: new Date()
       })
       .where(eq(users.id, referrerId));
 
     // Create referral rewards
-    await this.db.insert(referralRewards).values([
+    await db.insert(referralRewards).values([
       {
         referrerId,
         referredId: referredUserId,
@@ -1150,9 +1180,9 @@ export class DatabaseStorage implements IStorage {
     ]);
 
     // Award coins to referrer
-    await this.db.update(users)
+    await db.update(users)
       .set({ 
-        coinsBalance: sql`coins_balance + 1000`,
+        coinsBalance: drizzleSql`coins_balance + 1000`,
         updatedAt: new Date()
       })
       .where(eq(users.id, referrerId));
@@ -1161,9 +1191,9 @@ export class DatabaseStorage implements IStorage {
     await this.addExperiencePoints(referrerId, 200, 'referral', 'Referral bonus');
 
     // Award coins to referred user
-    await this.db.update(users)
+    await db.update(users)
       .set({ 
-        coinsBalance: sql`coins_balance + 500`,
+        coinsBalance: drizzleSql`coins_balance + 500`,
         updatedAt: new Date()
       })
       .where(eq(users.id, referredUserId));
@@ -1172,14 +1202,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getReferralRewards(userId: string): Promise<ReferralReward[]> {
-    return await this.db.select()
+    return await db.select()
       .from(referralRewards)
       .where(eq(referralRewards.referrerId, userId))
       .orderBy(desc(referralRewards.createdAt));
   }
 
   async claimReferralReward(userId: string, rewardId: string): Promise<void> {
-    await this.db.update(referralRewards)
+    await db.update(referralRewards)
       .set({ 
         claimed: true,
         claimedAt: new Date()
@@ -1192,7 +1222,7 @@ export class DatabaseStorage implements IStorage {
 
   // XP Transaction History
   async getXpTransactions(userId: string, limit: number = 50): Promise<XpTransaction[]> {
-    return await this.db.select()
+    return await db.select()
       .from(xpTransactions)
       .where(eq(xpTransactions.userId, userId))
       .orderBy(desc(xpTransactions.createdAt))
@@ -1210,7 +1240,7 @@ export class DatabaseStorage implements IStorage {
     todaysChallengesCompleted: number;
     todaysChallengesTotal: number;
   }> {
-    const user = await this.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (user.length === 0) throw new Error('User not found');
 
     const unclaimedRewards = await this.getUnclaimedLevelRewards(userId);
@@ -1238,7 +1268,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Check if already friends or request exists
-    const existingConnection = await this.db.select()
+    const existingConnection = await db.select()
       .from(socialConnections)
       .where(and(
         eq(socialConnections.followerId, requesterId),
@@ -1250,7 +1280,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Already friends or following this user');
     }
 
-    const existingRequest = await this.db.select()
+    const existingRequest = await db.select()
       .from(friendRequests)
       .where(and(
         eq(friendRequests.requesterId, requesterId),
@@ -1263,7 +1293,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Friend request already sent');
     }
 
-    const [request] = await this.db.insert(friendRequests).values({
+    const [request] = await db.insert(friendRequests).values({
       requesterId,
       recipientId,
       status: 'pending'
@@ -1273,7 +1303,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async acceptFriendRequest(requestId: string, userId: string): Promise<void> {
-    const request = await this.db.select()
+    const request = await db.select()
       .from(friendRequests)
       .where(and(
         eq(friendRequests.id, requestId),
@@ -1287,12 +1317,12 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Update request status
-    await this.db.update(friendRequests)
+    await db.update(friendRequests)
       .set({ status: 'accepted', updatedAt: new Date() })
       .where(eq(friendRequests.id, requestId));
 
     // Create mutual friendship
-    await this.db.insert(socialConnections).values([
+    await db.insert(socialConnections).values([
       {
         followerId: request[0].requesterId,
         followingId: request[0].recipientId,
@@ -1307,7 +1337,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async declineFriendRequest(requestId: string, userId: string): Promise<void> {
-    await this.db.update(friendRequests)
+    await db.update(friendRequests)
       .set({ status: 'declined', updatedAt: new Date() })
       .where(and(
         eq(friendRequests.id, requestId),
@@ -1316,7 +1346,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFriendRequests(userId: string): Promise<Array<FriendRequest & { requester: User }>> {
-    const result = await this.db.select({
+    const result = await db.select({
       id: friendRequests.id,
       requesterId: friendRequests.requesterId,
       recipientId: friendRequests.recipientId,
@@ -1337,7 +1367,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSentFriendRequests(userId: string): Promise<Array<FriendRequest & { recipient: User }>> {
-    const result = await this.db.select({
+    const result = await db.select({
       id: friendRequests.id,
       requesterId: friendRequests.requesterId,
       recipientId: friendRequests.recipientId,
@@ -1355,13 +1385,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async removeFriend(userId: string, friendId: string): Promise<void> {
-    await this.db.delete(socialConnections)
+    await db.delete(socialConnections)
       .where(and(
         eq(socialConnections.followerId, userId),
         eq(socialConnections.followingId, friendId)
       ));
 
-    await this.db.delete(socialConnections)
+    await db.delete(socialConnections)
       .where(and(
         eq(socialConnections.followerId, friendId),
         eq(socialConnections.followingId, userId)
@@ -1369,7 +1399,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getFriends(userId: string): Promise<Array<User & { friendshipDate: Date }>> {
-    const result = await this.db.select({
+    const result = await db.select({
       id: users.id,
       username: users.username,
       email: users.email,
@@ -1403,16 +1433,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Private league methods
-  async createPrivateLeague(league: Omit<PrivateLeague, 'id' | 'createdAt' | 'updatedAt'>): Promise<PrivateLeague> {
+  async createPrivateLeague(league: Omit<PrivateLeague, 'id' | 'createdAt' | 'updatedAt' | 'inviteCode'>): Promise<PrivateLeague> {
     const inviteCode = this.generateUniqueCode();
     
-    const [newLeague] = await this.db.insert(privateLeagues).values({
+    const [newLeague] = await db.insert(privateLeagues).values({
       ...league,
       inviteCode
     }).returning();
 
     // Add creator as member
-    await this.db.insert(privateLeagueMembers).values({
+    await db.insert(privateLeagueMembers).values({
       leagueId: newLeague.id,
       userId: league.creatorId,
       role: 'creator'
@@ -1422,7 +1452,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async joinPrivateLeague(userId: string, inviteCode: string): Promise<PrivateLeague> {
-    const league = await this.db.select()
+    const league = await db.select()
       .from(privateLeagues)
       .where(eq(privateLeagues.inviteCode, inviteCode))
       .limit(1);
@@ -1432,7 +1462,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Check if already a member
-    const existingMember = await this.db.select()
+    const existingMember = await db.select()
       .from(privateLeagueMembers)
       .where(and(
         eq(privateLeagueMembers.leagueId, league[0].id),
@@ -1445,7 +1475,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Check member limit
-    const memberCount = await this.db.select()
+    const memberCount = await db.select()
       .from(privateLeagueMembers)
       .where(eq(privateLeagueMembers.leagueId, league[0].id));
 
@@ -1454,7 +1484,7 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Add user as member
-    await this.db.insert(privateLeagueMembers).values({
+    await db.insert(privateLeagueMembers).values({
       leagueId: league[0].id,
       userId,
       role: 'member'
@@ -1464,7 +1494,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async leavePrivateLeague(userId: string, leagueId: string): Promise<void> {
-    const member = await this.db.select()
+    const member = await db.select()
       .from(privateLeagueMembers)
       .where(and(
         eq(privateLeagueMembers.leagueId, leagueId),
@@ -1480,7 +1510,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Creator cannot leave the league');
     }
 
-    await this.db.delete(privateLeagueMembers)
+    await db.delete(privateLeagueMembers)
       .where(and(
         eq(privateLeagueMembers.leagueId, leagueId),
         eq(privateLeagueMembers.userId, userId)
@@ -1488,8 +1518,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPrivateLeagues(userId: string): Promise<Array<PrivateLeague & { memberCount: number; isMember: boolean }>> {
-    const allLeagues = await this.db.select().from(privateLeagues);
-    const userMemberships = await this.db.select()
+    const allLeagues = await db.select().from(privateLeagues);
+    const userMemberships = await db.select()
       .from(privateLeagueMembers)
       .where(eq(privateLeagueMembers.userId, userId));
 
@@ -1497,7 +1527,7 @@ export class DatabaseStorage implements IStorage {
 
     const result = await Promise.all(
       allLeagues.map(async (league) => {
-        const memberCount = await this.db.select()
+        const memberCount = await db.select()
           .from(privateLeagueMembers)
           .where(eq(privateLeagueMembers.leagueId, league.id));
 
@@ -1513,7 +1543,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPrivateLeagueMembers(leagueId: string): Promise<Array<User & { role: string; joinedAt: Date }>> {
-    const result = await this.db.select({
+    const result = await db.select({
       id: users.id,
       username: users.username,
       email: users.email,
@@ -1549,7 +1579,7 @@ export class DatabaseStorage implements IStorage {
 
   async addContestToLeague(leagueId: string, contestId: string, userId: string): Promise<PrivateLeagueContest> {
     // Check if user is a member of the league
-    const membership = await this.db.select()
+    const membership = await db.select()
       .from(privateLeagueMembers)
       .where(and(
         eq(privateLeagueMembers.leagueId, leagueId),
@@ -1561,7 +1591,7 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Not a member of this league');
     }
 
-    const [leagueContest] = await this.db.insert(privateLeagueContests).values({
+    const [leagueContest] = await db.insert(privateLeagueContests).values({
       leagueId,
       contestId,
       createdBy: userId
@@ -1571,7 +1601,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getLeagueContests(leagueId: string): Promise<Array<Contest & { addedBy: User; addedAt: Date }>> {
-    const result = await this.db.select({
+    const result = await db.select({
       id: contests.id,
       name: contests.name,
       description: contests.description,
@@ -1582,8 +1612,35 @@ export class DatabaseStorage implements IStorage {
       endTime: contests.endTime,
       status: contests.status,
       featured: contests.featured,
+      visibility: contests.visibility,
+      inviteCode: contests.inviteCode,
+      createdBy: contests.createdBy,
+      allowFriends: contests.allowFriends,
       createdAt: contests.createdAt,
-      addedBy: users,
+      addedBy: {
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        fullName: users.fullName,
+        password: users.password,
+        coinsBalance: users.coinsBalance,
+        profilePicture: users.profilePicture,
+        bio: users.bio,
+        phoneNumber: users.phoneNumber,
+        dateOfBirth: users.dateOfBirth,
+        location: users.location,
+        isAdmin: users.isAdmin,
+        level: users.level,
+        experiencePoints: users.experiencePoints,
+        currentStreak: users.currentStreak,
+        longestStreak: users.longestStreak,
+        lastActiveDate: users.lastActiveDate,
+        referralCode: users.referralCode,
+        referredBy: users.referredBy,
+        totalReferrals: users.totalReferrals,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      },
       addedAt: privateLeagueContests.createdAt
     })
     .from(privateLeagueContests)
@@ -1597,13 +1654,13 @@ export class DatabaseStorage implements IStorage {
 
   // Contest comments methods
   async addContestComment(comment: Omit<ContestComment, 'id' | 'createdAt' | 'updatedAt'>): Promise<ContestComment> {
-    const [newComment] = await this.db.insert(contestComments).values(comment).returning();
+    const [newComment] = await db.insert(contestComments).values(comment).returning();
     return newComment;
   }
 
   async getContestComments(contestId: string, limit: number = 50): Promise<Array<ContestComment & { user: User; replies: Array<ContestComment & { user: User }> }>> {
     // Get top-level comments
-    const topLevelComments = await this.db.select({
+    const topLevelComments = await db.select({
       id: contestComments.id,
       contestId: contestComments.contestId,
       userId: contestComments.userId,
@@ -1613,13 +1670,36 @@ export class DatabaseStorage implements IStorage {
       isEdited: contestComments.isEdited,
       createdAt: contestComments.createdAt,
       updatedAt: contestComments.updatedAt,
-      user: users
+      user: {
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        fullName: users.fullName,
+        password: users.password,
+        coinsBalance: users.coinsBalance,
+        profilePicture: users.profilePicture,
+        bio: users.bio,
+        phoneNumber: users.phoneNumber,
+        dateOfBirth: users.dateOfBirth,
+        location: users.location,
+        isAdmin: users.isAdmin,
+        level: users.level,
+        experiencePoints: users.experiencePoints,
+        currentStreak: users.currentStreak,
+        longestStreak: users.longestStreak,
+        lastActiveDate: users.lastActiveDate,
+        referralCode: users.referralCode,
+        referredBy: users.referredBy,
+        totalReferrals: users.totalReferrals,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      }
     })
     .from(contestComments)
     .innerJoin(users, eq(contestComments.userId, users.id))
     .where(and(
       eq(contestComments.contestId, contestId),
-      eq(contestComments.parentCommentId, null)
+      isNull(contestComments.parentCommentId)
     ))
     .orderBy(desc(contestComments.createdAt))
     .limit(limit);
@@ -1627,7 +1707,7 @@ export class DatabaseStorage implements IStorage {
     // Get replies for each comment
     const commentsWithReplies = await Promise.all(
       topLevelComments.map(async (comment) => {
-        const replies = await this.db.select({
+        const replies = await db.select({
           id: contestComments.id,
           contestId: contestComments.contestId,
           userId: contestComments.userId,
@@ -1637,7 +1717,30 @@ export class DatabaseStorage implements IStorage {
           isEdited: contestComments.isEdited,
           createdAt: contestComments.createdAt,
           updatedAt: contestComments.updatedAt,
-          user: users
+          user: {
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        fullName: users.fullName,
+        password: users.password,
+        coinsBalance: users.coinsBalance,
+        profilePicture: users.profilePicture,
+        bio: users.bio,
+        phoneNumber: users.phoneNumber,
+        dateOfBirth: users.dateOfBirth,
+        location: users.location,
+        isAdmin: users.isAdmin,
+        level: users.level,
+        experiencePoints: users.experiencePoints,
+        currentStreak: users.currentStreak,
+        longestStreak: users.longestStreak,
+        lastActiveDate: users.lastActiveDate,
+        referralCode: users.referralCode,
+        referredBy: users.referredBy,
+        totalReferrals: users.totalReferrals,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      }
         })
         .from(contestComments)
         .innerJoin(users, eq(contestComments.userId, users.id))
@@ -1656,7 +1759,7 @@ export class DatabaseStorage implements IStorage {
 
   async likeComment(commentId: string, userId: string): Promise<void> {
     // Check if already liked
-    const existingLike = await this.db.select()
+    const existingLike = await db.select()
       .from(commentLikes)
       .where(and(
         eq(commentLikes.commentId, commentId),
@@ -1669,34 +1772,34 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Add like
-    await this.db.insert(commentLikes).values({
+    await db.insert(commentLikes).values({
       commentId,
       userId
     });
 
     // Update comment like count
-    await this.db.update(contestComments)
-      .set({ likes: sql`likes + 1` })
+    await db.update(contestComments)
+      .set({ likes: drizzleSql`likes + 1` })
       .where(eq(contestComments.id, commentId));
   }
 
   async unlikeComment(commentId: string, userId: string): Promise<void> {
     // Remove like
-    await this.db.delete(commentLikes)
+    await db.delete(commentLikes)
       .where(and(
         eq(commentLikes.commentId, commentId),
         eq(commentLikes.userId, userId)
       ));
 
     // Update comment like count
-    await this.db.update(contestComments)
-      .set({ likes: sql`likes - 1` })
+    await db.update(contestComments)
+      .set({ likes: drizzleSql`likes - 1` })
       .where(eq(contestComments.id, commentId));
   }
 
   async editComment(commentId: string, userId: string, content: string): Promise<void> {
-    await this.db.update(contestComments)
-      .set({ 
+    await db.update(contestComments)
+      .set({
         content,
         isEdited: true,
         updatedAt: new Date()
@@ -1708,7 +1811,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteComment(commentId: string, userId: string): Promise<void> {
-    await this.db.delete(contestComments)
+    await db.delete(contestComments)
       .where(and(
         eq(contestComments.id, commentId),
         eq(contestComments.userId, userId)
@@ -1717,12 +1820,12 @@ export class DatabaseStorage implements IStorage {
 
   // Achievement sharing methods
   async shareAchievement(share: Omit<AchievementShare, 'id' | 'createdAt'>): Promise<AchievementShare> {
-    const [newShare] = await this.db.insert(achievementShares).values(share).returning();
+    const [newShare] = await db.insert(achievementShares).values(share).returning();
     return newShare;
   }
 
   async getAchievementShares(userId: string, limit: number = 20): Promise<Array<AchievementShare & { achievement: Achievement; contest?: Contest }>> {
-    const result = await this.db.select({
+    const result = await db.select({
       id: achievementShares.id,
       userId: achievementShares.userId,
       achievementId: achievementShares.achievementId,
@@ -1730,8 +1833,32 @@ export class DatabaseStorage implements IStorage {
       message: achievementShares.message,
       platform: achievementShares.platform,
       createdAt: achievementShares.createdAt,
-      achievement: achievements,
-      contest: contests
+      achievement: {
+        id: achievements.id,
+        name: achievements.name,
+        description: achievements.description,
+        icon: achievements.icon,
+        category: achievements.category,
+        requirement: achievements.requirement,
+        rarity: achievements.rarity
+      },
+      contest: {
+        id: contests.id,
+        name: contests.name,
+        description: contests.description,
+        entryFee: contests.entryFee,
+        prizePool: contests.prizePool,
+        maxParticipants: contests.maxParticipants,
+        startTime: contests.startTime,
+        endTime: contests.endTime,
+        status: contests.status,
+        featured: contests.featured,
+        visibility: contests.visibility,
+        inviteCode: contests.inviteCode,
+        createdBy: contests.createdBy,
+        allowFriends: contests.allowFriends,
+        createdAt: contests.createdAt
+      }
     })
     .from(achievementShares)
     .innerJoin(achievements, eq(achievementShares.achievementId, achievements.id))
@@ -1740,13 +1867,16 @@ export class DatabaseStorage implements IStorage {
     .orderBy(desc(achievementShares.createdAt))
     .limit(limit);
 
-    return result;
+    return result.map(r => ({
+      ...r,
+      contest: r.contest || undefined
+    }));
   }
 
   // Chat methods
   async sendChatMessage(message: Omit<ChatMessage, 'id' | 'createdAt' | 'updatedAt'>): Promise<ChatMessage> {
     // Check if user is a member of the league
-    const membership = await this.db.select()
+    const membership = await db.select()
       .from(privateLeagueMembers)
       .where(and(
         eq(privateLeagueMembers.leagueId, message.leagueId),
@@ -1758,12 +1888,12 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Not a member of this league');
     }
 
-    const [newMessage] = await this.db.insert(chatMessages).values(message).returning();
+    const [newMessage] = await db.insert(chatMessages).values(message).returning();
     return newMessage;
   }
 
   async getChatMessages(leagueId: string, limit: number = 100): Promise<Array<ChatMessage & { user: User }>> {
-    const result = await this.db.select({
+    const result = await db.select({
       id: chatMessages.id,
       leagueId: chatMessages.leagueId,
       userId: chatMessages.userId,
@@ -1772,7 +1902,30 @@ export class DatabaseStorage implements IStorage {
       isEdited: chatMessages.isEdited,
       createdAt: chatMessages.createdAt,
       updatedAt: chatMessages.updatedAt,
-      user: users
+      user: {
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        fullName: users.fullName,
+        password: users.password,
+        coinsBalance: users.coinsBalance,
+        profilePicture: users.profilePicture,
+        bio: users.bio,
+        phoneNumber: users.phoneNumber,
+        dateOfBirth: users.dateOfBirth,
+        location: users.location,
+        isAdmin: users.isAdmin,
+        level: users.level,
+        experiencePoints: users.experiencePoints,
+        currentStreak: users.currentStreak,
+        longestStreak: users.longestStreak,
+        lastActiveDate: users.lastActiveDate,
+        referralCode: users.referralCode,
+        referredBy: users.referredBy,
+        totalReferrals: users.totalReferrals,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt
+      }
     })
     .from(chatMessages)
     .innerJoin(users, eq(chatMessages.userId, users.id))
@@ -1784,7 +1937,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async editChatMessage(messageId: string, userId: string, content: string): Promise<void> {
-    await this.db.update(chatMessages)
+    await db.update(chatMessages)
       .set({ 
         content,
         isEdited: true,
@@ -1797,7 +1950,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteChatMessage(messageId: string, userId: string): Promise<void> {
-    await this.db.delete(chatMessages)
+    await db.delete(chatMessages)
       .where(and(
         eq(chatMessages.id, messageId),
         eq(chatMessages.userId, userId)
@@ -1806,19 +1959,19 @@ export class DatabaseStorage implements IStorage {
 
   // User contest creation methods
   async createUserContest(contest: Omit<Contest, 'id' | 'createdAt'>): Promise<Contest> {
-    const [newContest] = await this.db.insert(contests).values(contest).returning();
+    const [newContest] = await db.insert(contests).values(contest).returning();
     return newContest;
   }
 
   async getUserContests(userId: string): Promise<Contest[]> {
-    return await this.db.select()
+    return await db.select()
       .from(contests)
       .where(eq(contests.createdBy, userId))
       .orderBy(desc(contests.createdAt));
   }
 
   async updateUserContest(contestId: string, userId: string, updates: Partial<Contest>): Promise<Contest> {
-    const [updatedContest] = await this.db.update(contests)
+    const [updatedContest] = await db.update(contests)
       .set(updates)
       .where(and(
         eq(contests.id, contestId),
@@ -1834,7 +1987,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUserContest(contestId: string, userId: string): Promise<void> {
-    const result = await this.db.delete(contests)
+    const result = await db.delete(contests)
       .where(and(
         eq(contests.id, contestId),
         eq(contests.createdBy, userId)
@@ -1847,7 +2000,7 @@ export class DatabaseStorage implements IStorage {
 
   // Contest invitation methods
   async inviteFriendToContest(contestId: string, inviterId: string, inviteeId: string, message?: string): Promise<ContestInvitation> {
-    const [invitation] = await this.db.insert(contestInvitations).values({
+    const [invitation] = await db.insert(contestInvitations).values({
       contestId,
       inviterId,
       inviteeId,
@@ -1859,7 +2012,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getContestInvitations(userId: string): Promise<Array<ContestInvitation & { contest: Contest; inviter: User }>> {
-    return await this.db.select({
+    return await db.select({
       id: contestInvitations.id,
       contestId: contestInvitations.contestId,
       inviterId: contestInvitations.inviterId,
@@ -1890,13 +2043,24 @@ export class DatabaseStorage implements IStorage {
         username: users.username,
         fullName: users.fullName,
         email: users.email,
+        password: users.password,
         profilePicture: users.profilePicture,
+        bio: users.bio,
+        phoneNumber: users.phoneNumber,
+        dateOfBirth: users.dateOfBirth,
+        location: users.location,
+        isAdmin: users.isAdmin,
         coinsBalance: users.coinsBalance,
-        xp: users.xp,
+        experiencePoints: users.experiencePoints,
         level: users.level,
+        currentStreak: users.currentStreak,
+        longestStreak: users.longestStreak,
+        lastActiveDate: users.lastActiveDate,
+        referralCode: users.referralCode,
+        referredBy: users.referredBy,
+        totalReferrals: users.totalReferrals,
         createdAt: users.createdAt,
-        lastUpdated: users.lastUpdated,
-        isActive: users.isActive
+        updatedAt: users.updatedAt
       }
     })
     .from(contestInvitations)
@@ -1907,7 +2071,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSentContestInvitations(userId: string): Promise<Array<ContestInvitation & { contest: Contest; invitee: User }>> {
-    return await this.db.select({
+    return await db.select({
       id: contestInvitations.id,
       contestId: contestInvitations.contestId,
       inviterId: contestInvitations.inviterId,
@@ -1938,13 +2102,24 @@ export class DatabaseStorage implements IStorage {
         username: users.username,
         fullName: users.fullName,
         email: users.email,
+        password: users.password,
         profilePicture: users.profilePicture,
+        bio: users.bio,
+        phoneNumber: users.phoneNumber,
+        dateOfBirth: users.dateOfBirth,
+        location: users.location,
+        isAdmin: users.isAdmin,
         coinsBalance: users.coinsBalance,
-        xp: users.xp,
+        experiencePoints: users.experiencePoints,
         level: users.level,
+        currentStreak: users.currentStreak,
+        longestStreak: users.longestStreak,
+        lastActiveDate: users.lastActiveDate,
+        referralCode: users.referralCode,
+        referredBy: users.referredBy,
+        totalReferrals: users.totalReferrals,
         createdAt: users.createdAt,
-        lastUpdated: users.lastUpdated,
-        isActive: users.isActive
+        updatedAt: users.updatedAt
       }
     })
     .from(contestInvitations)
@@ -1955,7 +2130,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async acceptContestInvitation(invitationId: string, userId: string): Promise<void> {
-    await this.db.update(contestInvitations)
+    await db.update(contestInvitations)
       .set({
         status: 'accepted',
         updatedAt: new Date()
@@ -1967,7 +2142,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async declineContestInvitation(invitationId: string, userId: string): Promise<void> {
-    await this.db.update(contestInvitations)
+    await db.update(contestInvitations)
       .set({
         status: 'declined',
         updatedAt: new Date()
@@ -1980,7 +2155,7 @@ export class DatabaseStorage implements IStorage {
 
   // Contest validation and abandonment methods
   async getContestParticipantCount(contestId: string): Promise<number> {
-    const result = await this.db.select({ count: sql<number>`count(*)` })
+    const result = await db.select({ count: drizzleSql<number>`count(*)` })
       .from(contestEntries)
       .where(eq(contestEntries.contestId, contestId));
     
@@ -1990,11 +2165,11 @@ export class DatabaseStorage implements IStorage {
   async checkAndHandleAbandonedContests(): Promise<void> {
     // Get all upcoming contests that should have started but have less than 2 participants
     const now = new Date();
-    const abandonedContests = await this.db.select()
+    const abandonedContests = await db.select()
       .from(contests)
       .where(and(
         eq(contests.status, 'upcoming'),
-        sql`${contests.startTime} <= ${now}`
+        drizzleSql`${contests.startTime} <= ${now}`
       ));
 
     for (const contest of abandonedContests) {
@@ -2002,28 +2177,42 @@ export class DatabaseStorage implements IStorage {
       
       if (participantCount < 2) {
         // Mark contest as abandoned
-        await this.db.update(contests)
+        await db.update(contests)
           .set({ status: 'cancelled' })
           .where(eq(contests.id, contest.id));
         
         console.log(`Contest "${contest.name}" (${contest.id}) marked as abandoned - only ${participantCount} participants`);
         
         // Refund entry fees to participants
-        const entries = await this.db.select()
+        const entries = await db.select()
           .from(contestEntries)
           .where(eq(contestEntries.contestId, contest.id));
         
         for (const entry of entries) {
+          // Get user's current balance before refund
+          const user = await this.getUser(entry.userId);
+          if (!user) continue;
+          
+          const coinsBefore = user.coinsBalance;
+          const coinsAfter = coinsBefore + contest.entryFee;
+          
           // Refund the entry fee
-          await this.updateUserCoinsBalance(entry.userId, contest.entryFee);
+          await this.updateUserCoinsBalance(entry.userId, coinsAfter);
           
           // Record the refund transaction
-          await this.db.insert(coinTransactions).values({
+          await db.insert(coinTransactions).values({
             userId: entry.userId,
             amount: contest.entryFee,
             type: 'refund',
             description: `Refund for abandoned contest: ${contest.name}`,
-            contestId: contest.id
+            contestId: contest.id,
+            coinsBefore,
+            coinsAfter,
+            cashAmount: null,
+            exchangeRate: null,
+            paymentMethod: null,
+            paymentId: null,
+            status: 'completed'
           });
         }
       }

@@ -73,12 +73,22 @@ export class ContestScheduler {
         await storage.updateUserCoinsBalance(entry.userId, contest.entryFee);
         
         // Record the refund transaction
+        const user = await storage.getUser(entry.userId);
+        if (!user) continue;
+        
         await storage.createCoinTransaction({
           userId: entry.userId,
           amount: contest.entryFee,
           type: 'refund',
           description: `Refund for abandoned contest: ${contest.name}`,
-          contestId: contest.id
+          contestId: contest.id,
+          coinsBefore: user.coinsBalance,
+          coinsAfter: user.coinsBalance + contest.entryFee,
+          status: 'completed',
+          cashAmount: null,
+          exchangeRate: null,
+          paymentMethod: null,
+          paymentId: null
         });
         
         console.log(`💰 Refunded ${contest.entryFee} coins to user ${entry.userId} for abandoned contest`);
