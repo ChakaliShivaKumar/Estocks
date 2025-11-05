@@ -129,7 +129,7 @@ async function startBackendAPI() {
     const server = await registerRoutes(app);
 
     console.log(`🌐 Starting backend API on port ${port}...`);
-    server.listen(port, "0.0.0.0", () => {
+    server.listen(Number(port), "0.0.0.0", () => {
       console.log(`✅ Estocks Backend API running on port ${port}`);
       console.log(`🌐 API URL: http://localhost:${port}`);
       console.log(`📋 Health check: http://localhost:${port}/health`);
