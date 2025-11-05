@@ -15,6 +15,9 @@ export interface Contest {
   featured?: boolean;
   closingSoon?: boolean;
   description?: string;
+  status?: string;
+  startTime?: string;
+  endTime?: string;
 }
 
 interface ContestCardProps {
